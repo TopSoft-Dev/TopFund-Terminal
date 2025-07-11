@@ -38,6 +38,22 @@ body {
     gap: 20px;
 }
 
+/* Responsywność dla urządzeń mobilnych */
+@media (max-width: 768px) {
+    .container {
+        grid-template-columns: 1fr;
+        padding: 10px;
+        gap: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 5px;
+        gap: 10px;
+    }
+}
+
 .card {
     background-color: var(--card-background);
     border-radius: 8px;
@@ -530,8 +546,22 @@ body.dark-mode .login-modal-content {
     border-bottom-color: var(--primary-color);
 }
 
-body.dark-mode .login-modal-content h2 {
-    color: #ecf0f1; /* Jasny kolor dla nagłówka w trybie ciemnym */
+.topfund-brand {
+    color: #1e3a8a;
+    font-weight: 700;
+}
+
+.terminal-text {
+    color: #6b7280;
+    font-weight: 300;
+}
+
+body.dark-mode .topfund-brand {
+    color: #3b82f6;
+}
+
+body.dark-mode .terminal-text {
+    color: #9ca3af;
 }
 
 .login-modal-content input {
@@ -744,23 +774,20 @@ body.dark-mode .details-content {
     text-align: right;
 }
 
-/* Media Queries dla responsywności */
+/* Media Queries dla responsywności - Tablety */
 @media (max-width: 768px) {
-    .container {
-        grid-template-columns: 1fr; /* Wszystkie karty jedna pod drugą */
-        padding: 15px; /* Mniejszy padding na mniejszych ekranach */
-    }
-
     .card {
-        padding: 20px; /* Mniejszy padding w kartach */
+        padding: 15px;
+        margin: 0;
     }
 
     h2 {
-        font-size: 1.5em;
+        font-size: 1.4em;
+        margin-bottom: 15px;
     }
 
     button {
-        padding: 10px 15px;
+        padding: 8px 12px;
         font-size: 14px;
     }
 
@@ -770,103 +797,210 @@ body.dark-mode .details-content {
         font-size: 16px;
     }
 
-    .add-btn {
-        font-size: 20px;
-    }
-
-    .edit-btn {
-        font-size: 18px;
-    }
-
-    .delete-btn {
-        font-size: 20px;
-    }
-
-    .details-toggle-btn {
-        font-size: 20px;
-    }
-
     .modal-content {
-        width: 90%;
-        margin: 10% auto; /* Dostosowanie marginesu dla mniejszych ekranów */
-        padding: 25px;
-    }
-
-    table {
-        display: block;
-        overflow-x: auto; /* Przewijanie poziome dla tabel */
-        white-space: nowrap; /* Zapobiega zawijaniu tekstu w komórkach */
-    }
-
-    th,
-    td {
-        padding: 8px;
-        font-size: 0.9em;
-    }
-
-    .user-summary-card {
-        flex-direction: column; /* Elementy w karcie podsumowania jeden pod drugim */
-        align-items: flex-start;
-        gap: 10px;
-    }
-
-    .percentage-change {
-        font-size: 1.2em;
-        padding: 3px 8px;
-    }
-
-    .transaction-detail-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 5px;
-    }
-
-    .detail-name {
-        flex-basis: auto;
-    }
-
-    .detail-new-balance {
-        margin-left: 0;
-        text-align: left;
-    }
-}
-
-/* Dodatkowe dostosowania dla bardzo małych ekranów */
-@media (max-width: 480px) {
-    .card {
-        padding: 15px;
-    }
-
-    h2 {
-        font-size: 1.3em;
-    }
-
-    .modal-content {
+        width: 95%;
+        margin: 5% auto;
         padding: 20px;
     }
 
-    .login-logo {
-        width: 80px;
+    table {
+        font-size: 0.9em;
+    }
+
+    th, td {
+        padding: 6px 4px;
+        font-size: 0.85em;
+    }
+
+    .user-summary-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 15px;
+    }
+
+    .percentage-change {
+        font-size: 1.1em;
+        padding: 3px 8px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="password"],
+    select,
+    textarea {
+        padding: 8px;
+        font-size: 16px; /* Zapobiega zoom na iOS */
+    }
+}
+
+/* Telefony - bardzo małe ekrany */
+@media (max-width: 480px) {
+    body {
+        font-size: 14px;
+    }
+
+    .card {
+        padding: 10px;
+        border-radius: 6px;
+    }
+
+    h2 {
+        font-size: 1.2em;
+        margin-bottom: 10px;
+    }
+
+    .modal-content {
+        width: 98%;
+        margin: 2% auto;
+        padding: 15px;
+    }
+
+    .login-modal-content {
+        max-width: 320px;
+        padding: 20px 15px;
+    }
+
+    button {
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+
+    .circle-btn {
+        width: 26px;
+        height: 26px;
+        font-size: 14px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="password"],
+    select,
+    textarea {
+        padding: 6px;
+        font-size: 16px;
     }
 
     #loginForm input,
     #loginForm button {
-        font-size: 1em;
-        padding: 8px;
+        font-size: 16px;
+        padding: 10px;
     }
 
     .user-entry {
         flex-direction: column;
         align-items: flex-start;
-        gap: 5px;
+        gap: 8px;
+        padding: 10px 5px;
     }
 
     .action-buttons {
         width: 100%;
         justify-content: flex-end;
+        gap: 5px;
     }
 
     .user-info {
         width: 100%;
+    }
+
+    .user-summary-card {
+        padding: 10px;
+        font-size: 0.9em;
+    }
+
+    .percentage-change {
+        font-size: 1em;
+        padding: 2px 6px;
+    }
+
+    table {
+        font-size: 0.8em;
+    }
+
+    th, td {
+        padding: 4px 2px;
+        font-size: 0.8em;
+    }
+
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .card-header h2 {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+
+    .card-header-buttons {
+        align-self: flex-end;
+    }
+}
+
+/* Bardzo małe telefony */
+@media (max-width: 320px) {
+    .container {
+        padding: 2px;
+        gap: 5px;
+    }
+
+    .card {
+        padding: 8px;
+    }
+
+    h2 {
+        font-size: 1.1em;
+    }
+
+    .login-modal-content {
+        max-width: 280px;
+        padding: 15px 10px;
+    }
+
+    .modal-content {
+        width: 99%;
+        margin: 1% auto;
+        padding: 10px;
+    }
+
+    button {
+        padding: 5px 8px;
+        font-size: 12px;
+    }
+
+    .circle-btn {
+        width: 24px;
+        height: 24px;
+        font-size: 12px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="password"],
+    select,
+    textarea {
+        padding: 5px;
+        font-size: 16px;
+    }
+
+    table {
+        font-size: 0.7em;
+    }
+
+    th, td {
+        padding: 3px 1px;
+        font-size: 0.7em;
+    }
+
+    .user-summary-card {
+        padding: 8px;
+        font-size: 0.85em;
+    }
+
+    .percentage-change {
+        font-size: 0.9em;
+        padding: 2px 4px;
     }
 }

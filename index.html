@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-title" content="TopFund">
     
     <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.json">
     
     <!-- Icons -->
     <link rel="icon" type="image/png" sizes="512x512" href="icon-512x512.png">
@@ -167,5 +167,15 @@
     </div>
 
     <script type="module" src="script.js?v=1.1"></script>
+    
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Nie rejestrujemy service worker-a jeszcze, ale kod jest gotowy
+                console.log('PWA ready - Service Worker support detected');
+            });
+        }
+    </script>
 </body>
 </html>

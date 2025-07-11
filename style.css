@@ -1,0 +1,872 @@
+:root {
+    --primary-color: #3498db;
+    --secondary-color: #2ecc71;
+    --background-color: #f4f7f6;
+    --card-background: #ffffff;
+    --text-color: #333;
+    --header-color: #2c3e50;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --border-color: #e0e0e0;
+}
+
+body.dark-mode {
+    --primary-color: #3498db; /* Można dostosować, jeśli potrzeba */
+    --secondary-color: #2ecc71;
+    --background-color: #1a1a1a;
+    --card-background: #2d2d2d;
+    --text-color: #ecf0f1;
+    --header-color: #ffffff;
+    --shadow-color: rgba(0, 0, 0, 0.4);
+    --border-color: #404040;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    margin: 0;
+    line-height: 1.6;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+.card {
+    background-color: var(--card-background);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px var(--shadow-color);
+    padding: 25px;
+    border: 1px solid var(--border-color);
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+h2 {
+    color: var(--header-color);
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 10px;
+    margin-top: 0;
+}
+
+h3 {
+    color: var(--header-color);
+    margin-top: 0;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="password"],
+select,
+textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    background-color: #ffffff;
+    color: var(--text-color);
+}
+
+body.dark-mode input[type="text"],
+body.dark-mode input[type="number"],
+body.dark-mode input[type="password"],
+body.dark-mode select,
+body.dark-mode textarea {
+    background-color: #404040;
+    color: #ecf0f1;
+    border-color: #555555;
+}
+
+input[type="color"] {
+    padding: 0;
+    border: none;
+    width: 50px;
+    height: 30px;
+    cursor: pointer;
+}
+
+.password-input-container {
+    position: relative;
+    width: 100%;
+}
+
+.password-input-container input[type="password"],
+.password-input-container input[type="text"] {
+    width: 100%;
+    padding-right: 60px; /* Przywrócono miejsce na przycisk Pokaż */
+}
+
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: var(--primary-color);
+    font-size: 0.9em;
+    font-weight: 700;
+}
+
+button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 700;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #2980b9;
+}
+
+#users-list {
+    margin-bottom: 20px;
+}
+
+.user-entry {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.user-name {
+    font-weight: 700;
+    font-size: 1.1em;
+    color: var(--header-color);
+}
+
+.user-detail {
+    font-size: 0.9em;
+    color: #555;
+}
+
+body.dark-mode .user-detail {
+    color: #bdc3c7; /* Jaśniejszy szary dla trybu ciemnego */
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.circle-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+    line-height: 1; /* Dokładne centrowanie */
+}
+
+.circle-btn:hover {
+    transform: scale(1.1);
+}
+
+.circle-btn.edit-btn {
+    background-color: var(--primary-color);
+    color: white;
+}
+.circle-btn.edit-btn:hover {
+    background-color: #2980b9;
+}
+
+.circle-btn.delete-btn {
+    background-color: #e74c3c;
+    color: white;
+}
+.circle-btn.delete-btn:hover {
+    background-color: #c0392b;
+}
+
+.user-color-dot {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+#financial-summary {
+    font-size: 1.2em;
+    margin-bottom: 20px;
+}
+
+#user-summary-cards {
+    display: grid;
+    gap: 15px;
+}
+
+/* --- STYLIZACJA KART PODSUMOWANIA UŻYTKOWNIKÓW --- */
+
+/* Definicja animacji błysku */
+@keyframes shine-effect {
+    0% { transform: translateX(-250%) skewX(-25deg); } /* Start daleko po lewej */
+    100% { transform: translateX(250%) skewX(-25deg); } /* Koniec daleko po prawej */
+}
+
+.user-summary-card {
+    padding: 20px;
+    border-radius: 15px;
+    color: white;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+    transition: box-shadow 0.3s ease;
+    z-index: 1;
+    display: flex; /* Używamy Flexbox do rozmieszczenia elementów */
+    justify-content: space-between; /* Rozsuwa elementy na boki */
+    align-items: center; /* Wyśrodkowuje w pionie */
+}
+
+.user-summary-card:hover {
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
+}
+
+.percentage-change {
+    font-size: 1.6em; /* Nieco mniejsza czcionka, aby pasowała do tła */
+    font-weight: 700;
+    padding: 5px 12px; /* Wewnętrzny odstęp (góra/dół, lewo/prawo) */
+    border-radius: 12px; /* Zaokrąglone rogi, tworząc "pigułkę" */
+    background-color: rgba(0, 0, 0, 0.35); /* Mocniej przyciemnione tło */
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1); /* Delikatny wewnętrzny cień dla głębi */
+}
+
+/* Efekt błysku przechodzącego przez kartę */
+.user-summary-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 40%; /* Szerokość samego błysku */
+    height: 100%;
+    background: linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.2) 50%, /* Delikatniejszy błysk */
+        rgba(255, 255, 255, 0) 100%
+    );
+    transform: skewX(-25deg);
+    animation: shine-effect 5s infinite; /* Wolniejsza, bardziej elegancka animacja */
+    animation-delay: 2s;
+}
+
+/* Upewnienie się, że tekst jest zawsze na wierzchu błysku */
+.user-summary-card .card-main-content,
+.user-summary-card .percentage-change {
+    position: relative;
+    z-index: 2;
+}
+
+.card-main-content h4,
+.card-main-content p {
+    margin: 0;
+}
+
+.card-main-content h4 {
+    margin-bottom: 5px;
+    font-size: 1.2em;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+th {
+    background-color: #f2f2f2;
+    font-weight: 700;
+}
+
+body.dark-mode th {
+    background-color: #404040; /* Szare tło dla nagłówków w dark mode */
+}
+
+tbody tr:hover {
+    background-color: #f9f9f9;
+}
+
+body.dark-mode tbody tr:hover {
+    background-color: #555555; /* Szare podświetlenie w dark mode */
+}
+
+footer {
+    text-align: center;
+    padding: 20px;
+    margin-top: 30px;
+    color: #777;
+    font-size: 0.9em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+}
+
+#theme-toggle {
+    background-color: var(--card-background);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+/* Nowe style dla sekcji użytkowników */
+.card-header {
+    display: flex;
+    justify-content: space-between; /* Zmienione */
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.card-header-buttons {
+    display: flex;
+    gap: 10px; /* Odstęp między przyciskami */
+}
+
+.card-header h2 {
+    margin: 0;
+    flex-grow: 1; /* Tytuł zajmuje dostępną przestrzeń */
+    /* Styl separatora skopiowany z głównego h2 */
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 10px;
+}
+
+.archive-btn {
+    background-color: #95a5a6;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    transition: background-color 0.3s ease;
+}
+
+.archive-btn:hover {
+    background-color: #7f8c8d;
+}
+
+.archive-btn.active {
+    background-color: var(--primary-color);
+}
+
+#users-list {
+    list-style-type: none;
+    padding: 0;
+}
+
+.user-entry {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.user-entry span {
+    flex-grow: 1;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+/* --- UJEDNOLICONE STYLE PRZYCISKÓW --- */
+.circle-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.circle-btn:hover {
+    transform: scale(1.1);
+}
+
+/* Przycisk Dodaj (+) */
+.add-btn {
+    font-size: 24px;
+    background-color: var(--secondary-color);
+    color: white;
+}
+.add-btn:hover {
+    background-color: #27ae60;
+}
+
+/* Przycisk Edytuj (...) */
+.edit-btn {
+    font-size: 20px;
+    background-color: var(--primary-color);
+    color: white;
+    padding-bottom: 4px; /* Korekta dla idealnego centrowania '…' */
+}
+.edit-btn:hover {
+    background-color: #2980b9;
+}
+
+/* Przycisk Usuń (x) */
+.delete-btn {
+    font-size: 22px;
+    background-color: #e74c3c;
+    color: white;
+}
+.delete-btn:hover {
+    background-color: #c0392b;
+}
+
+/* Przycisk Szczegółów (+/-) */
+.details-toggle-btn {
+    font-size: 24px;
+    background-color: var(--primary-color);
+    color: white;
+    line-height: 1;
+}
+.details-toggle-btn:hover {
+    background-color: #2980b9;
+}
+/* ----------------------------------------- */
+
+.user-color-dot {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+/* Style dla modala */
+.modal {
+    display: none; /* Domyślnie ukryty */
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.6);
+    flex-direction: column; /* Ustawienie dla centrowania wielu elementów */
+    align-items: center;
+    justify-content: center;
+}
+
+/* Magiczna reguła: gdy modal jest aktywowany przez JS, wycentruj go */
+.modal[style*="display: block"], .modal[style*="display: flex"] {
+    display: flex !important; /* Użyj flex do centrowania, !important, by mieć pewność */
+}
+
+.modal-content {
+    background-color: var(--card-background); /* Dodane: tło dla modala */
+    padding: 40px;
+    border: 1px solid #888;
+    width: 90%; /* Zmienione: początkowa szerokość */
+    max-width: 500px; /* Dodane: maksymalna szerokość */
+    border-radius: 12px;
+    position: relative;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    margin: auto; /* Dodane: centrowanie modala */
+}
+
+.login-modal-content {
+    background-color: #e0e0e0; /* Srebrne tło dla karty logowania */
+    color: var(--text-color); /* Domyślny kolor tekstu */
+    overflow: hidden; /* Dla efektu błysku */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    position: relative; /* Dla efektu błysku */
+    max-width: 400px; /* Węższe okno logowania */
+    text-align: center; /* Wyśrodkowanie tekstu i logo */
+}
+
+body.dark-mode .login-modal-content {
+    background-color: #2d2d2d; /* Szare tło dla trybu ciemnego */
+    color: #ecf0f1;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+
+.login-modal-content h2 {
+    color: var(--header-color);
+    border-bottom-color: var(--primary-color);
+}
+
+body.dark-mode .login-modal-content h2 {
+    color: #ecf0f1; /* Jasny kolor dla nagłówka w trybie ciemnym */
+}
+
+.login-modal-content input {
+    background-color: #f0f0f0;
+    color: var(--text-color);
+    border-color: #ccc;
+}
+
+body.dark-mode .login-modal-content input {
+    background-color: #404040;
+    color: #ecf0f1;
+    border-color: #555555;
+}
+
+.login-modal-content input::placeholder {
+    color: #888;
+}
+
+body.dark-mode .login-modal-content input::placeholder {
+    color: #bdc3c7;
+}
+
+.login-modal-content button {
+    background-color: var(--primary-color);
+}
+
+/* Efekt błysku dla karty logowania */
+.login-modal-content::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.5) 50%,
+        rgba(255, 255, 255, 0) 100%
+    );
+    transform: skewX(-25deg);
+    animation: shine-effect 3s infinite;
+    pointer-events: none; /* Dodane: ignoruj zdarzenia myszy */
+}
+
+@keyframes shine-effect {
+    0% { transform: translateX(-100%) skewX(-25deg); }
+    100% { transform: translateX(250%) skewX(-25deg); }
+}
+
+#loginForm {
+    display: flex;
+    flex-direction: column;
+    gap: 20px; /* Zwiększony odstęp */
+    position: relative; /* Dodane: dla z-index */
+    z-index: 2; /* Dodane: upewnij się, że formularz jest nad błyskiem */
+}
+
+#loginForm input,
+#loginForm button {
+    width: 100%; /* Pełna szerokość */
+    position: relative; /* Dodane: dla z-index */
+    z-index: 2; /* Dodane: upewnij się, że inputy i button są nad błyskiem */
+}
+
+.close-button {
+    color: #aaa;
+    position: absolute; /* Pozycjonowanie względem .modal-content */
+    top: 15px;
+    right: 20px;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+body.dark-mode .close-button {
+    color: #bdc3c7;
+}
+
+body.dark-mode .close-button:hover,
+body.dark-mode .close-button:focus {
+    color: #ecf0f1;
+}
+
+#editUserForm div {
+    margin-bottom: 15px;
+}
+
+/* Nowe style dla sekcji historii transakcji */
+#history-section {
+    grid-column: 1 / -1; /* Rozciągnij na całą szerokość */
+}
+
+.details-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.3s ease;
+    margin-left: 10px;
+}
+
+.details-btn:hover {
+    background-color: #2980b9;
+}
+
+#transactionDetailsContent p {
+    margin-bottom: 5px;
+}
+
+#transactionDetailsContent strong {
+    color: var(--header-color);
+}
+
+#transactionDetailsContent .user-detail {
+    margin-left: 20px;
+    border-left: 3px solid var(--border-color);
+    padding-left: 10px;
+    margin-bottom: 10px;
+}
+
+#transactionDetailsContent .commission-detail {
+    margin-left: 40px;
+    font-size: 0.9em;
+    color: #777;
+}
+
+/* Style dla kwot w historii transakcji */
+.positive-amount {
+    color: #2ecc71; /* Zielony */
+    font-weight: bold;
+}
+
+.negative-amount {
+    color: #e67e22; /* Pomarańczowy */
+    font-weight: bold;
+}
+
+/* Nowe style dla szczegółów transakcji */
+#transactions-history td.action-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end; /* Wyrównuje zawartość do prawej */
+}
+
+.toggle-details-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.3s ease;
+}
+
+.toggle-details-btn:hover {
+    background-color: #2980b9;
+}
+
+.transaction-details-container td {
+    padding: 0 !important; /* Usuń domyślny padding komórki */
+}
+
+.details-content {
+    padding: 12px; /* Dodaj padding do zawartości wewnątrz */
+    background-color: #f9f9f9;
+    border-top: 1px solid var(--border-color);
+}
+
+body.dark-mode .details-content {
+    background-color: #404040; /* Szare tło dla szczegółów w dark mode */
+}
+
+.transaction-detail-row {
+    display: flex;
+    align-items: center;
+    padding: 5px 0;
+}
+
+.detail-name {
+    font-weight: bold;
+    flex-basis: 150px; /* Ustal szerokość dla nazwy/etykiety */
+    flex-shrink: 0; /* Zapobiegaj kurczeniu się */
+}
+
+.detail-new-balance {
+    margin-left: auto; /* Wyrównaj do prawej */
+    text-align: right;
+    padding-left: 15px; /* Dodaj odstęp od lewej */
+}
+
+#transactions-history th:nth-child(5),
+#transactions-history td:nth-child(5) {
+    text-align: right;
+}
+
+#transactions-history th:nth-child(5),
+#transactions-history td:nth-child(5) {
+    text-align: right;
+}
+
+/* Media Queries dla responsywności */
+@media (max-width: 768px) {
+    .container {
+        grid-template-columns: 1fr; /* Wszystkie karty jedna pod drugą */
+        padding: 15px; /* Mniejszy padding na mniejszych ekranach */
+    }
+
+    .card {
+        padding: 20px; /* Mniejszy padding w kartach */
+    }
+
+    h2 {
+        font-size: 1.5em;
+    }
+
+    button {
+        padding: 10px 15px;
+        font-size: 14px;
+    }
+
+    .circle-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 16px;
+    }
+
+    .add-btn {
+        font-size: 20px;
+    }
+
+    .edit-btn {
+        font-size: 18px;
+    }
+
+    .delete-btn {
+        font-size: 20px;
+    }
+
+    .details-toggle-btn {
+        font-size: 20px;
+    }
+
+    .modal-content {
+        width: 90%;
+        margin: 10% auto; /* Dostosowanie marginesu dla mniejszych ekranów */
+        padding: 25px;
+    }
+
+    table {
+        display: block;
+        overflow-x: auto; /* Przewijanie poziome dla tabel */
+        white-space: nowrap; /* Zapobiega zawijaniu tekstu w komórkach */
+    }
+
+    th,
+    td {
+        padding: 8px;
+        font-size: 0.9em;
+    }
+
+    .user-summary-card {
+        flex-direction: column; /* Elementy w karcie podsumowania jeden pod drugim */
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .percentage-change {
+        font-size: 1.2em;
+        padding: 3px 8px;
+    }
+
+    .transaction-detail-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+
+    .detail-name {
+        flex-basis: auto;
+    }
+
+    .detail-new-balance {
+        margin-left: 0;
+        text-align: left;
+    }
+}
+
+/* Dodatkowe dostosowania dla bardzo małych ekranów */
+@media (max-width: 480px) {
+    .card {
+        padding: 15px;
+    }
+
+    h2 {
+        font-size: 1.3em;
+    }
+
+    .modal-content {
+        padding: 20px;
+    }
+
+    .login-logo {
+        width: 80px;
+    }
+
+    #loginForm input,
+    #loginForm button {
+        font-size: 1em;
+        padding: 8px;
+    }
+
+    .user-entry {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+
+    .action-buttons {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .user-info {
+        width: 100%;
+    }
+}

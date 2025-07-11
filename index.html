@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TopFund Manager</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Modal Logowania -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content login-modal-content">
+            <h2>TopFund Terminal</h2>
+            <form id="loginForm">
+                <input type="text" id="loginUsername" placeholder="Nazwa użytkownika" required>
+                <input type="password" id="loginPassword" placeholder="Hasło" required>
+                <button type="submit">Zaloguj</button>
+            </form>
+            <p id="loginError" style="color: red; margin-top: 10px;"></p>
+        </div>
+    </div>
+
+    
+
+    <main class="container">
+        <section id="users-section" class="card">
+            <div class="card-header">
+                <h2>Użytkownicy</h2>
+                <div class="card-header-buttons">
+                    <button id="topciuLogoutBtn" class="circle-btn" title="Wyloguj" style="display: none;">⏻</button>
+                    <button id="showAddUserModalBtn" class="circle-btn add-btn">+</button>
+                </div>
+            </div>
+            <div id="users-list"></div>
+        </section>
+
+        <section id="user-card" class="card" style="display: none;">
+            <h2>Użytkownik</h2>
+            <p>Witaj, <strong><span id="username-display"></span></strong></p>
+            <button id="logout-button">Wyloguj</button>
+        </section>
+
+        <section id="summary-section" class="card">
+            <h2>Podsumowanie finansowe</h2>
+            <div id="financial-summary">
+                <p id="totalBalanceContainer">Łączne saldo: <strong id="total-balance">0.00 USD</strong></p>
+            </div>
+            <div id="user-summary-cards"></div>
+        </section>
+
+        <section id="transactions-section" class="card">
+            <h2>Dodaj transakcję</h2>
+            <form id="add-transaction-form">
+                <select id="transaction-type" required>
+                    <option value="trade">Zagranie (Trade)</option>
+                    <option value="deposit">Wpłata</option>
+                    <option value="withdrawal">Wypłata</option>
+                </select>
+                <select id="transaction-user" style="display: none;">
+                    <option value="">Wybierz użytkownika (dla wpłaty/wypłaty)</option>
+                </select>
+                <input type="number" id="transaction-amount" placeholder="Kwota (USD)" step="0.01" required>
+                <button type="submit">Dodaj transakcję</button>
+            </form>
+        </section>
+
+        <section id="history-section" class="card">
+            <div class="card-header">
+                <h2>Historia transakcji</h2>
+                <button id="toggleArchiveBtn" class="archive-btn">Pokaż archiwum</button>
+            </div>
+            <table id="transactions-history">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Typ</th>
+                        <th>Opis</th>
+                        <th>Kwota</th>
+                        <th>Saldo po transakcji</th>
+                        <th>Akcje</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Wpisy historii będą dodawane tutaj -->
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <footer>
+        <p>Topciu, 2025</p>
+        <button id="theme-toggle" class="circle-btn" title="Zmień motyw">🌙</button>
+    </footer>
+
+    <!-- Modal do DODAWANIA użytkownika -->
+    <div id="addUserModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeAddModalBtn">&times;</span>
+            <h2>Dodaj Nowego Użytkownika</h2>
+            <form id="add-user-form">
+                <input type="text" id="user-name" placeholder="Nazwa użytkownika" required>
+                <input type="color" id="user-color" value="#ff0000" title="Wybierz kolor użytkownika">
+                <input type="number" id="user-balance" placeholder="Saldo początkowe (USD)" step="0.01" required>
+                <input type="number" id="user-commission" placeholder="Prowizja (%)" step="0.1" required>
+                <button type="submit">Dodaj</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal do EDYCJI użytkownika -->
+    <div id="editUserModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeEditModalBtn">&times;</span>
+            <h2>Edytuj Użytkownika</h2>
+            <form id="editUserForm">
+                <input type="hidden" id="editUserId">
+                <div>
+                    <label for="editStartBalance">Saldo startowe (USD):</label>
+                    <input type="number" id="editStartBalance" step="0.01" required>
+                </div>
+                <div>
+                    <label for="editColor">Kolor:</label>
+                    <input type="color" id="editColor" required>
+                </div>
+                <div id="editPasswordGroup" style="display: none;">
+                    <label for="editPassword">Nowe hasło:</label>
+                    <div class="password-input-container">
+                        <input type="password" id="editPassword" placeholder="Pozostaw puste, aby nie zmieniać">
+                        <span class="toggle-password" id="toggleEditPassword">Pokaż</span>
+                        
+                    </div>
+                </div>
+                <button type="submit">Zapisz zmiany</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal do SZCZEGÓŁÓW TRANSAKCJI -->
+    <div id="transactionDetailsModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeTransactionDetailsModalBtn">&times;</span>
+            <h2>Szczegóły Transakcji</h2>
+            <div id="transactionDetailsContent">
+                <!-- Tutaj będą ładowane szczegóły transakcji -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="script.js?v=1.1"></script>
+</body>
+</html>

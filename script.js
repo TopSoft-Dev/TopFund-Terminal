@@ -2,6 +2,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, getDocs, where } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
+// --- WAŻNE: ID APLIKACJI ---
+const APLIKACJA_ID = "topfund-terminal"; 
+// -----------------------------------------
+
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyCRKyqcz7xd4ykSB7R1Tm_c_bmE8UVLiLE",
@@ -76,20 +80,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Ukryj główną aplikację na początku
     mainAppElements.forEach(el => el.style.display = 'none');
-    loginModal.style.display = 'block'; // Pokaż modal logowania
+    loginModal.style.display = 'flex'; // Pokaż modal logowania
 
     // Ukryj przycisk dodawania użytkownika na początku
     showAddUserModalBtn.style.display = 'none';
 
-    // --- Obsługa Logowania ---
+    // --- NOWA, ULEPSZONA OBSŁUGA LOGOWANIA ---
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        loginErrorElement.textContent = '';
+
         const username = loginUsernameInput.value;
         const password = loginPasswordInput.value;
         const hashedPassword = await hashPassword(password);
 
         try {
-            const usersSnapshot = await getDocs(query(collection(db, "users"), where("name", "==", username)));
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("name", "==", username));
+            const usersSnapshot = await getDocs(q);
+
             if (usersSnapshot.empty) {
                 loginErrorElement.textContent = 'Nieprawidłowa nazwa użytkownika lub hasło.';
                 return;
@@ -99,37 +108,43 @@ document.addEventListener('DOMContentLoaded', () => {
             const userData = userDoc.data();
 
             if (userData.hashedPassword === hashedPassword) {
-                loggedInUser = { id: userDoc.id, ...userData }; // Zapisz dane zalogowanego użytkownika
-                loginModal.style.display = 'none';
-                mainAppElements.forEach(el => el.style.display = ''); // Pokaż główną aplikację
-                loginErrorElement.textContent = ''; // Wyczyść błąd
+                const userPermissions = userData.permissions || [];
 
-                // Kontrola widoczności elementów na podstawie roli użytkownika
-                if (loggedInUser.name === 'Topciu') {
-                    showAddUserModalBtn.style.display = 'block';
-                    topciuLogoutBtn.style.display = 'block'; // Pokaż przycisk wylogowania dla Topcia
-                    transactionsSection.style.display = 'block';
-                    totalBalanceContainer.style.display = 'block';
-                    usersSection.style.display = 'block';
-                    userCard.style.display = 'none'; // Ukryj kartę użytkownika dla Topcia
+                // Sprawdzenie uprawnień
+                if (userData.name === 'Topciu' || userPermissions.includes(APLIKACJA_ID)) {
+                    // --- SUKCES LOGOWANIA ---
+                    loggedInUser = { id: userDoc.id, ...userData };
+                    loginModal.style.display = 'none';
+                    mainAppElements.forEach(el => el.style.display = ''); // Pokaż główną aplikację
+                    loginErrorElement.textContent = '';
+
+                    // Kontrola widoczności elementów na podstawie roli użytkownika
+                    if (loggedInUser.name === 'Topciu') {
+                        showAddUserModalBtn.style.display = 'block';
+                        topciuLogoutBtn.style.display = 'block';
+                        transactionsSection.style.display = 'block';
+                        totalBalanceContainer.style.display = 'block';
+                        usersSection.style.display = 'block';
+                        userCard.style.display = 'none';
+                    } else {
+                        showAddUserModalBtn.style.display = 'none';
+                        transactionsSection.style.display = 'none';
+                        totalBalanceContainer.style.display = 'none';
+                        usersSection.style.display = 'none';
+                        userCard.style.display = 'block';
+                        usernameDisplay.textContent = loggedInUser.name;
+                    }
+                    displayUserSummaryCards(cachedUsers, loggedInUser);
+                    displayTransactions(cachedTransactions, loggedInUser);
                 } else {
-                    showAddUserModalBtn.style.display = 'none';
-                    transactionsSection.style.display = 'none';
-                    totalBalanceContainer.style.display = 'none';
-                    usersSection.style.display = 'none';
-
-                    // Pokaż kartę użytkownika i ustaw jego imię
-                    userCard.style.display = 'block';
-                    usernameDisplay.textContent = loggedInUser.name;
+                    loginErrorElement.textContent = 'Brak uprawnień do tej aplikacji.';
                 }
-                displayUserSummaryCards(cachedUsers, loggedInUser); // Odśwież karty po zalogowaniu
-                displayTransactions(cachedTransactions, loggedInUser); // Odśwież transakcje po zalogowaniu
             } else {
                 loginErrorElement.textContent = 'Nieprawidłowa nazwa użytkownika lub hasło.';
             }
         } catch (error) {
             console.error("Błąd logowania: ", error);
-            loginErrorElement.textContent = 'Wystąpił błąd podczas logowania.';
+            loginErrorElement.textContent = 'Wystąpił błąd podczas logowania. Spróbuj ponownie.';
         }
     });
 
@@ -645,3 +660,4 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('theme', theme);
     });
 });
+

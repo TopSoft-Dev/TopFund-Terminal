@@ -126,6 +126,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         totalBalanceContainer.style.display = 'block';
                         usersSection.style.display = 'block';
                         userCard.style.display = 'none';
+                        
+                        // AKTYWACJA: Uruchom inicjalizację użytkowników terminala
+                        initializeTerminalUsers(); 
+
                     } else {
                         showAddUserModalBtn.style.display = 'none';
                         transactionsSection.style.display = 'none';
@@ -160,6 +164,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- GŁÓWNA LOGIKA APLIKACJI ---
+
+    async function initializeTerminalUsers() {
+        console.log("Aktywacja przez Topciu: Sprawdzanie konfiguracji użytkowników terminala...");
+        const usersSnapshot = await getDocs(collection(db, "users"));
+        
+        for (const userDoc of usersSnapshot.docs) {
+            const userData = userDoc.data();
+            const permissions = userData.permissions || [];
+
+            // Sprawdź, czy użytkownik ma uprawnienia, ale brakuje mu domyślnej konfiguracji
+            if (permissions.includes(APLIKACJA_ID) && userData.commission === undefined) {
+                console.log(`Znaleziono nieskonfigurowanego użytkownika: ${userData.name}. Ustawianie domyślnych wartości...`);
+                try {
+                    await updateDoc(userDoc.ref, {
+                        color: "#ff0000",
+                        commission: 30,
+                        startBalance: 0,
+                        currentBalance: 0,
+                        // Upewnijmy się, że te pola istnieją, nawet jeśli są puste
+                        hashedPassword: userData.hashedPassword || "",
+                        createdAt: userData.createdAt || new Date()
+                    });
+                    console.log(`Użytkownik ${userData.name} został pomyślnie skonfigurowany.`);
+                } catch (error) {
+                    console.error(`Błąd podczas konfiguracji użytkownika ${userData.name}:`, error);
+                }
+            }
+        }
+    }
     
 
     async function recalculateAllBalances(transactionIdToSkip = null) {
@@ -167,11 +200,20 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const usersSnapshot = await getDocs(collection(db, "users"));
             const transactionsSnapshot = await getDocs(query(collection(db, "transactions"), orderBy("createdAt", "asc")));
-            let usersData = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            // Pobierz wszystkich użytkowników i od razu filtruj
+            let allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const activeUsers = allUsers.filter(user => {
+                const permissions = user.permissions || [];
+                return user.name === 'Topciu' || permissions.includes('topfund-terminal');
+            });
+            const activeUserIds = new Set(activeUsers.map(u => u.id));
+
             const transactions = transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
             let recalculatedUsers = {};
-            usersData.forEach(user => {
+            allUsers.forEach(user => {
+                // Inicjalizuj salda dla wszystkich, ale obliczenia tylko dla aktywnych
                 recalculatedUsers[user.id] = { ...user, currentBalance: user.startBalance };
             });
 
@@ -183,28 +225,39 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (user) user.currentBalance += (transaction.type === 'deposit' ? transaction.amount : -transaction.amount);
                 } else if (transaction.type === 'trade') {
                     const profitLoss = transaction.amount;
-                    const totalBalanceBeforeTrade = Object.values(recalculatedUsers).reduce((sum, u) => sum + u.currentBalance, 0);
+
+                    // Oblicz saldo tylko dla AKTYWNYCH użytkowników
+                    const totalBalanceBeforeTrade = activeUsers.reduce((sum, u) => sum + recalculatedUsers[u.id].currentBalance, 0);
+
                     if (totalBalanceBeforeTrade > 0) {
                         let totalCommissionCollected = 0;
                         let userUpdates = {};
-                        for (const userId in recalculatedUsers) {
-                            const user = recalculatedUsers[userId];
-                            const userContributionRatio = user.currentBalance / totalBalanceBeforeTrade;
+
+                        // Iteruj tylko po AKTYWNYCH użytkownikach
+                        for (const user of activeUsers) {
+                            const userId = user.id;
+                            const userState = recalculatedUsers[userId];
+                            const userContributionRatio = userState.currentBalance / totalBalanceBeforeTrade;
                             const userProfitLoss = profitLoss * userContributionRatio;
                             let userShareAfterCommission = userProfitLoss;
                             let commissionAmount = 0;
+
                             if (user.name !== 'Topciu' && userProfitLoss > 0) {
                                 commissionAmount = userProfitLoss * (user.commission / 100);
                                 userShareAfterCommission -= commissionAmount;
                                 totalCommissionCollected += commissionAmount;
                             }
-                            userUpdates[userId] = { newBalance: user.currentBalance + userShareAfterCommission };
+                            userUpdates[userId] = { newBalance: userState.currentBalance + userShareAfterCommission };
                         }
+
                         const topciuId = Object.keys(recalculatedUsers).find(id => recalculatedUsers[id].name === 'Topciu');
+
+                        // Zastosuj aktualizacje tylko dla AKTYWNYCH użytkowników
                         for (const userId in userUpdates) {
                             recalculatedUsers[userId].currentBalance = userUpdates[userId].newBalance;
                         }
-                        if (topciuId && totalCommissionCollected > 0) {
+
+                        if (topciuId && activeUserIds.has(topciuId) && totalCommissionCollected > 0) {
                             recalculatedUsers[topciuId].currentBalance += totalCommissionCollected;
                         }
                     }
@@ -381,31 +434,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function processTransaction(type, userId, amount) {
         const usersSnapshot = await getDocs(collection(db, "users"));
-        const users = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        let topciuUser = users.find(u => u.name === 'Topciu');
-        if (!topciuUser) throw new Error('Brak użytkownika "Topciu".');
+        const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Filtruj do aktywnych użytkowników dla logiki biznesowej
+        const activeUsers = allUsers.filter(user => {
+            const permissions = user.permissions || [];
+            return user.name === 'Topciu' || permissions.includes('topfund-terminal');
+        });
+        const activeUserIds = new Set(activeUsers.map(u => u.id));
+        let topciuUser = activeUsers.find(u => u.name === 'Topciu');
 
         if (type === 'deposit' || type === 'withdrawal') {
-            const targetUser = users.find(u => u.id === userId);
+            const targetUser = allUsers.find(u => u.id === userId); // Wpłata/wypłata może dotyczyć każdego
             if (!targetUser) throw new Error('Wybrany użytkownik nie istnieje.');
+            
             const newCurrentBalance = targetUser.currentBalance + (type === 'deposit' ? amount : -amount);
             await updateDoc(doc(db, "users", targetUser.id), { currentBalance: newCurrentBalance });
             await addDoc(collection(db, "transactions"), {
                 userId: targetUser.id, userName: targetUser.name, type: type, amount: amount, description: "",
                 balanceAfter: newCurrentBalance, createdAt: new Date()
             });
+
         } else if (type === 'trade') {
-            const oldTotalBalance = cachedUsers.reduce((sum, u) => sum + u.currentBalance, 0);
+            if (!topciuUser) throw new Error('Brak aktywnego użytkownika "Topciu" z wymaganymi uprawnieniami.');
+
+            // U��yj przefiltrowanej listy `activeUsers` do obliczeń
+            const oldTotalBalance = activeUsers.reduce((sum, u) => sum + u.currentBalance, 0);
             const newTotalBalance = amount;
             const profitLoss = newTotalBalance - oldTotalBalance;
-            if (oldTotalBalance <= 0) throw new Error('Saldo początkowe jest zerowe lub ujemne.');
+
+            if (oldTotalBalance <= 0) throw new Error('Całkowite saldo początkowe aktywnych użytkowników jest zerowe lub ujemne.');
+
             let totalCommissionCollected = 0;
             let transactionDetails = {};
-            for (const user of users) {
+
+            for (const user of activeUsers) {
                 const userContributionRatio = user.currentBalance / oldTotalBalance;
                 const userProfitLoss = profitLoss * userContributionRatio;
                 let userShareAfterCommission = userProfitLoss;
                 let commissionAmount = 0;
+
                 if (user.name !== 'Topciu' && userProfitLoss > 0) {
                     commissionAmount = userProfitLoss * (user.commission / 100);
                     userShareAfterCommission -= commissionAmount;
@@ -414,14 +482,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const newBalance = user.currentBalance + userShareAfterCommission;
                 transactionDetails[user.id] = { name: user.name, oldBalance: user.currentBalance, profitLossShare: userProfitLoss, commissionPaid: commissionAmount, newBalance: newBalance };
             }
+
             const topciuDetails = transactionDetails[topciuUser.id];
             if(topciuDetails) {
                 topciuDetails.newBalance += totalCommissionCollected;
                 topciuDetails.commissionCollected = totalCommissionCollected;
             }
+
             for(const userId in transactionDetails){
                 await updateDoc(doc(db, "users", userId), { currentBalance: transactionDetails[userId].newBalance });
             }
+
             await addDoc(collection(db, "transactions"), {
                 type: type, amount: profitLoss, description: `Zmiana salda z ${oldTotalBalance.toFixed(2)} na ${newTotalBalance.toFixed(2)}`,
                 details: transactionDetails, totalBalanceAfter: newTotalBalance, createdAt: new Date()
@@ -541,20 +612,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     addUserForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        // Sprawdź, czy zalogowany użytkownik to Topciu
         if (!loggedInUser || loggedInUser.name !== 'Topciu') {
             alert('Tylko Topciu może dodawać nowych użytkowników.');
             return;
         }
 
         const userName = document.getElementById('user-name').value;
+        const password = document.getElementById('user-password').value; // Pobierz hasło
         const userColor = document.getElementById('user-color').value;
         const startBalance = parseFloat(document.getElementById('user-balance').value);
         const commission = parseFloat(document.getElementById('user-commission').value);
-        if (userName && !isNaN(startBalance) && !isNaN(commission)) {
-            await addDoc(collection(db, "users"), { name: userName, color: userColor, startBalance: startBalance, currentBalance: startBalance, commission: commission, createdAt: new Date() });
-            addUserForm.reset();
-            addUserModal.style.display = 'none';
+
+        if (userName && password && !isNaN(startBalance) && !isNaN(commission)) {
+            try {
+                const hashedPassword = await hashPassword(password); // Haszuj hasło
+                await addDoc(collection(db, "users"), {
+                    name: userName,
+                    hashedPassword: hashedPassword, // Zapisz zahaszowane hasło
+                    color: userColor,
+                    startBalance: startBalance,
+                    currentBalance: startBalance,
+                    commission: commission,
+                    createdAt: new Date(),
+                    permissions: ["topfund-terminal"]
+                });
+                addUserForm.reset();
+                addUserModal.style.display = 'none';
+                alert(`Użytkownik ${userName} został pomyślnie dodany.`);
+            } catch (error) {
+                console.error("Błąd podczas dodawania użytkownika: ", error);
+                alert("Wystąpił błąd podczas dodawania użytkownika.");
+            }
         } else {
             alert('Proszę wypełnić wszystkie pola poprawnymi danymi.');
         }
@@ -627,7 +715,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- GŁÓWNE NASŁUCHIWANIE NA ZMIANY W BAZIE ---
     onSnapshot(query(collection(db, "users"), orderBy("createdAt")), (snapshot) => {
-        cachedUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Filtruj użytkowników, aby uwzględnić tylko tych z uprawnieniem 'topfund-terminal' lub użytkownika 'Topciu'
+        cachedUsers = allUsers.filter(user => {
+            const permissions = user.permissions || [];
+            return user.name === 'Topciu' || permissions.includes('topfund-terminal');
+        });
+
         displayUsers(cachedUsers);
         displayUserSummaryCards(cachedUsers, loggedInUser);
         populateTransactionUserSelect(cachedUsers);
@@ -661,3 +756,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// --- Funkcja testowa do dodania starej transakcji ---
+// Można ją wywołać w konsoli przez: addTestTransaction()
+window.addTestTransaction = async function() {
+    console.log("Dodawanie testowej transakcji archiwalnej...");
+    try {
+        const oldDate = new Date();
+        oldDate.setMonth(oldDate.getMonth() - 2); // Data 2 miesiące wstecz
+
+        await addDoc(collection(db, "transactions"), {
+            type: 'trade',
+            amount: 123.45,
+            description: 'Testowa transakcja archiwalna',
+            details: {
+                'testUser1': { name: 'Topciu', oldBalance: 1000, profitLossShare: 123.45, commissionPaid: 0, newBalance: 1123.45 }
+            },
+            totalBalanceAfter: 1123.45,
+            createdAt: oldDate
+        });
+        console.log('Testowa transakcja archiwalna została pomyślnie dodana!');
+        alert('Testowa transakcja archiwalna została pomyślnie dodana!');
+    } catch (error) {
+        console.error("Błąd podczas dodawania transakcji archiwalnej: ", error);
+        alert("Wystąpił błąd: " + error.message);
+    }
+}

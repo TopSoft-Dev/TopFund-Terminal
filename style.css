@@ -1011,3 +1011,31 @@ body.dark-mode .details-content {
         padding: 2px 4px;
     }
 }
+
+/* =============================================== */
+/* --- POPRAWKI DLA URZĄDZEŃ MOBILNYCH --- */
+/* =============================================== */
+
+@media (max-width: 768px) {
+    /*
+     * Poprawka dla szczegółów transakcji, aby nie wychodziły poza ekran.
+     * Zmieniamy układ z poziomego (flex-direction: row) na pionowy (column),
+     * co sprawia, że elementy układają się jeden pod drugim.
+     */
+    .transaction-detail-row {
+        flex-direction: column !important; /* Używamy !important dla pewności nadpisania */
+        align-items: flex-start !important; /* Wyrównujemy wszystko do lewej */
+        gap: 5px !important;
+    }
+
+    .detail-name {
+        flex-basis: auto !important; /* Resetujemy sztywną szerokość */
+    }
+
+    .detail-new-balance {
+        margin-left: 0 !important; /* Resetujemy margines, który wypychał element */
+        align-self: flex-start !important;
+        padding-left: 0 !important;
+        text-align: left !important; /* Wyrównujemy tekst do lewej */
+    }
+}

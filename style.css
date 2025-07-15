@@ -1013,46 +1013,45 @@ body.dark-mode .details-content {
 }
 
 /* =============================================== */
-/* --- POPRAWKI DLA URZĄDZEŃ MOBILNYCH --- */
+/* --- POPRAWKI DLA URZĄDZEŃ MOBILNYCH (v2) --- */
 /* =============================================== */
 
 @media (max-width: 768px) {
     /*
-     * Poprawka dla szczegółów transakcji.
-     * Elementy będą się teraz ładnie układać jeden pod drugim.
+     * Poprawka dla szczegółów transakcji (v2).
+     * Używamy flexboxa z zawijaniem, aby uzyskać pożądany układ:
+     * - Nazwa i zysk/strata w jednej linii.
+     * - Saldo w nowej linii poniżej.
      */
     .transaction-detail-row {
-        display: block !important;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0 8px; /* Odstęp poziomy między elementami w linii */
     }
 
-    .transaction-detail-row span {
-        display: block; /* Każdy element w nowej linii */
-        margin-bottom: 4px; /* Mały odstęp między liniami */
-    }
-
-    .detail-new-balance {
-        margin-left: 0 !important;
+    .transaction-detail-row .detail-new-balance {
+        width: 100%; /* Saldo zajmuje całą szerokość, przechodząc do nowej linii */
+        margin-top: 4px; /* Mały odstęp od góry */
         text-align: left !important;
     }
-}
 
-/*
- * Poprawka dla przycisku wylogowania Topcia.
- * Zapewniamy, że przycisk jest zawsze okrągły i czytelny.
- */
-#topciuLogoutBtn {
-    width: 32px;
-    height: 32px;
-    font-size: 20px;
-    line-height: 1;
-    padding: 0;
-    background-color: #e74c3c;
-    color: white;
-    border-radius: 50%; /* Gwarancja okrągłości */
-}
+    /*
+     * Poprawka dla przycisku wylogowania Topcia (v2).
+     * Ujednolicamy rozmiar i podmieniamy ikonę na strzałkę.
+     */
+    #topciuLogoutBtn {
+        width: 32px;   /* Taki sam rozmiar jak .add-btn */
+        height: 32px;  /* Taki sam rozmiar jak .add-btn */
+        font-size: 0;  /* Ukrywamy oryginalny symbol ⏻ */
+    }
 
-#topciuLogoutBtn:hover {
-    background-color: #c0392b;
+    #topciuLogoutBtn::before {
+        content: '←';         /* Nowa ikona - strzałka */
+        font-size: 22px;      /* Dopasowany rozmiar ikony */
+        font-weight: bold;
+        color: white;
+    }
 }
 
 /*

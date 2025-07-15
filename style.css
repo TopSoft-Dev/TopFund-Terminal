@@ -1018,24 +1018,61 @@ body.dark-mode .details-content {
 
 @media (max-width: 768px) {
     /*
-     * Poprawka dla szczegółów transakcji, aby nie wychodziły poza ekran.
-     * Zmieniamy układ z poziomego (flex-direction: row) na pionowy (column),
-     * co sprawia, że elementy układają się jeden pod drugim.
+     * Poprawka dla szczegółów transakcji.
+     * Elementy będą się teraz ładnie układać jeden pod drugim.
      */
     .transaction-detail-row {
-        flex-direction: column !important; /* Używamy !important dla pewności nadpisania */
-        align-items: flex-start !important; /* Wyrównujemy wszystko do lewej */
-        gap: 5px !important;
+        display: block !important;
     }
 
-    .detail-name {
-        flex-basis: auto !important; /* Resetujemy sztywną szerokość */
+    .transaction-detail-row span {
+        display: block; /* Każdy element w nowej linii */
+        margin-bottom: 4px; /* Mały odstęp między liniami */
     }
 
     .detail-new-balance {
-        margin-left: 0 !important; /* Resetujemy margines, który wypychał element */
-        align-self: flex-start !important;
-        padding-left: 0 !important;
-        text-align: left !important; /* Wyrównujemy tekst do lewej */
+        margin-left: 0 !important;
+        text-align: left !important;
+    }
+}
+
+/*
+ * Poprawka dla przycisku wylogowania Topcia.
+ * Zapewniamy, że przycisk jest zawsze okrągły i czytelny.
+ */
+#topciuLogoutBtn {
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+    line-height: 1;
+    padding: 0;
+    background-color: #e74c3c;
+    color: white;
+    border-radius: 50%; /* Gwarancja okrągłości */
+}
+
+#topciuLogoutBtn:hover {
+    background-color: #c0392b;
+}
+
+/*
+ * Poprawka dla kart użytkowników na mobilnych, aby zajmowały mniej miejsca.
+ * Przyciski akcji będą teraz obok informacji o użytkowniku.
+ */
+@media (max-width: 480px) {
+    .user-entry {
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 10px !important;
+    }
+
+    .user-info {
+        flex-grow: 1 !important;
+    }
+
+    .action-buttons {
+        width: auto !important;
+        justify-content: flex-end !important;
+        flex-shrink: 0 !important;
     }
 }

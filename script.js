@@ -77,6 +77,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const grantPermissionFields = document.getElementById('grant-permission-fields');
     const existingUsersList = document.getElementById('existing-users-list');
 
+    const transactionDetailsMobileModal = document.getElementById('transactionDetailsMobileModal');
+    const closeTransactionDetailsMobileModalBtn = document.getElementById('closeTransactionDetailsMobileModalBtn');
+    const transactionDetailsMobileContent = document.getElementById('transactionDetailsMobileContent');
+
     // --- Pamięć podręczna i stan aplikacji ---
     let cachedUsers = [];
     let allUsersForPermissions = []; // Nowa zmienna do przechowywania wszystkich użytkowników
@@ -631,9 +635,12 @@ document.addEventListener('DOMContentLoaded', () => {
     showAddUserModalBtn.addEventListener('click', () => addUserModal.style.display = 'block');
     closeAddModalBtn.addEventListener('click', () => addUserModal.style.display = 'none');
     closeEditModalBtn.addEventListener('click', () => editUserModal.style.display = 'none');
+    closeTransactionDetailsMobileModalBtn.addEventListener('click', () => transactionDetailsMobileModal.style.display = 'none');
+
     window.addEventListener('click', (event) => {
         if (event.target == addUserModal) addUserModal.style.display = "none";
         if (event.target == editUserModal) editUserModal.style.display = "none";
+        if (event.target == transactionDetailsMobileModal) transactionDetailsMobileModal.style.display = "none";
     });
 
     // Obsługa przełączania widoczności hasła
@@ -811,16 +818,44 @@ document.addEventListener('DOMContentLoaded', () => {
     transactionsHistoryBody.addEventListener('click', (event) => {
         const detailsButton = event.target.closest('.details-toggle-btn');
         const deleteButton = event.target.closest('.delete-transaction-btn');
+
         if (detailsButton) {
             const transactionId = detailsButton.dataset.transactionId;
-            const detailsContainer = document.getElementById(`details-${transactionId}`);
-            if (detailsContainer) {
-                const isHidden = detailsContainer.style.display === 'none';
-                detailsContainer.style.display = isHidden ? 'table-row' : 'none';
-                detailsButton.textContent = isHidden ? '–' : '+';
-                detailsButton.title = isHidden ? 'Ukryj szczegóły' : 'Pokaż szczegóły';
+            const transaction = cachedTransactions.find(t => t.id === transactionId);
+
+            // Logika dla urządzeń mobilnych -> Pokaż modal
+            if (window.innerWidth <= 768 && transaction && transaction.details) {
+                let detailsHtml = '';
+                for (const userId in transaction.details) {
+                    const detail = transaction.details[userId];
+                    if (loggedInUser && (loggedInUser.name === 'Topciu' || detail.name === loggedInUser.name)) {
+                        const profitLossClass = detail.profitLossShare >= 0 ? 'positive-amount' : 'negative-amount';
+                        const commissionText = (detail.commissionPaid && detail.commissionPaid > 0) 
+                            ? `<p>Prowizja: <span class="negative-amount">-${detail.commissionPaid.toFixed(2)} USD</span></p>` : '';
+
+                        detailsHtml += `
+                            <div class="mobile-detail-card">
+                                <h4>${detail.name}</h4>
+                                <p>Zysk/Strata: <span class="${profitLossClass}">${detail.profitLossShare >= 0 ? '+' : ''}${detail.profitLossShare.toFixed(2)} USD</span></p>
+                                ${commissionText}
+                                <p>Saldo po operacji: <strong>${detail.newBalance.toFixed(2)} USD</strong></p>
+                            </div>
+                        `;
+                    }
+                }
+                transactionDetailsMobileContent.innerHTML = detailsHtml;
+                transactionDetailsMobileModal.style.display = 'flex';
+            } else { // Logika dla desktopów -> Rozwiń wiersz
+                const detailsContainer = document.getElementById(`details-${transactionId}`);
+                if (detailsContainer) {
+                    const isHidden = detailsContainer.style.display === 'none';
+                    detailsContainer.style.display = isHidden ? 'table-row' : 'none';
+                    detailsButton.textContent = isHidden ? '–' : '+';
+                    detailsButton.title = isHidden ? 'Ukryj szczegóły' : 'Pokaż szczegóły';
+                }
             }
         }
+
         if (deleteButton) {
             deleteTransaction(deleteButton.dataset.transactionId);
         }

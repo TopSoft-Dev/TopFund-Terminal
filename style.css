@@ -29,6 +29,11 @@ body {
     transition: background-color 0.3s, color 0.3s;
 }
 
+/* Klasa do blokowania scrollowania gdy modal jest otwarty */
+body.modal-open {
+    overflow: hidden;
+}
+
 .container {
     max-width: 1200px;
     margin: 0 auto;
@@ -256,25 +261,19 @@ body.dark-mode .user-detail {
     color: white;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.25);
     transition: box-shadow 0.3s ease;
     z-index: 1;
     display: flex; /* Używamy Flexbox do rozmieszczenia elementów */
     justify-content: space-between; /* Rozsuwa elementy na boki */
     align-items: center; /* Wyśrodkowuje w pionie */
+    border: 3px solid transparent; /* Dodaj przezroczystą ramkę aby uniknąć przeskoków */
 }
 
 .user-summary-card:hover {
-    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
-}
-
-.percentage-change {
-    font-size: 1.6em; /* Nieco mniejsza czcionka, aby pasowała do tła */
-    font-weight: 700;
-    padding: 5px 12px; /* Wewnętrzny odstęp (góra/dół, lewo/prawo) */
-    border-radius: 12px; /* Zaokrąglone rogi, tworząc "pigułkę" */
-    background-color: rgba(0, 0, 0, 0.35); /* Mocniej przyciemnione tło */
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1); /* Delikatny wewnętrzny cień dla głębi */
+    box-shadow: 0 16px 35px rgba(0, 0, 0, 0.35);
+    border: 3px solid #ffd700;
+    transition: all 0.3s ease;
 }
 
 /* Efekt błysku przechodzącego przez kartę */
@@ -1145,6 +1144,68 @@ body.dark-mode .details-content {
     margin: 5px 0;
 }
 
+/* Style dla sekcji wykresu miesięcznych zysków */
+#monthly-profits-section {
+    min-width: 300px;
+}
+
+#user-card {
+    min-width: 250px;
+}
+
+#summary-section {
+    min-width: 300px;
+}
+
+#chart-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    background-color: var(--background-color);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+#monthly-profits-chart {
+    max-width: 100%;
+    height: auto;
+    background-color: var(--card-background);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* Responsywność dla wykresu */
+@media (max-width: 1024px) {
+    #monthly-profits-section,
+    #user-card,
+    #summary-section {
+        min-width: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    #chart-container {
+        padding: 6px;
+    }
+    
+    #monthly-profits-chart {
+        width: 100%;
+        height: 120px;
+    }
+}
+
+@media (max-width: 480px) {
+    #chart-container {
+        padding: 5px;
+    }
+    
+    #monthly-profits-chart {
+        width: 100%;
+        height: 100px;
+    }
+}
+
     /* Zapewnienie, że formularze w modalach nie będą się rozlewać */
     .modal-content form {
         display: flex;
@@ -1168,3 +1229,133 @@ body.dark-mode .details-content {
         box-sizing: border-box; /* Ważne dla poprawnego obliczania szerokości */
     }
 }
+
+/* Style dla przycisku szczegółów */
+.details-btn {
+    background-color: var(--primary-color);
+    color: white;
+    font-size: 16px;
+}
+
+.details-btn:hover {
+    background-color: #2980b9;
+}
+
+/* Style dla modala ze statystykami */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background-color: var(--background-color);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.stat-label {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.stat-value {
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+/* Responsywność dla modala statystyk */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .stat-item {
+        padding: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        gap: 8px;
+    }
+    
+    .stat-item {
+        padding: 8px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+}
+
+/* Zapewnienie, że formularze w modalach nie będą się rozlewać */
+
+/* Style dla modala z większym wykresem */
+.enlarged-chart-modal {
+    max-width: 90vw;
+    max-height: 90vh;
+    width: auto;
+    height: auto;
+    padding: 20px;
+}
+
+#enlarged-chart-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    background-color: var(--background-color);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+#enlarged-monthly-profits-chart {
+    max-width: 100%;
+    max-height: 100%;
+    background-color: var(--card-background);
+    border-radius: 4px;
+}
+
+/* Responsywność dla modala z większym wykresem */
+@media (max-width: 768px) {
+    .enlarged-chart-modal {
+        max-width: 95vw;
+        max-height: 85vh;
+        padding: 15px;
+    }
+    
+    #enlarged-chart-container {
+        padding: 10px;
+    }
+    
+    #enlarged-monthly-profits-chart {
+        width: 100%;
+        height: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .enlarged-chart-modal {
+        max-width: 98vw;
+        max-height: 80vh;
+        padding: 10px;
+    }
+    
+    .enlarged-chart-modal h2 {
+        font-size: 1.2em;
+        margin-bottom: 10px;
+    }
+    
+    #enlarged-chart-container {
+        padding: 5px;
+    }
+}
+
+/* Zapewnienie, że formularze w modalach nie będą się rozlewać */

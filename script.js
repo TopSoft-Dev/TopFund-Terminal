@@ -81,6 +81,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeTransactionDetailsMobileModalBtn = document.getElementById('closeTransactionDetailsMobileModalBtn');
     const transactionDetailsMobileContent = document.getElementById('transactionDetailsMobileContent');
 
+    // Elementy wykresu miesięcznych zysków
+    const monthlyProfitsSection = document.getElementById('monthly-profits-section');
+    const monthlyProfitsChart = document.getElementById('monthly-profits-chart');
+
+    // Elementy modala ze statystykami
+    const showDetailsBtn = document.getElementById('showDetailsBtn');
+    const detailedStatsModal = document.getElementById('detailedStatsModal');
+    const closeDetailedStatsModalBtn = document.getElementById('closeDetailedStatsModalBtn');
+
+    // Elementy modala z większym wykresem
+    const enlargedChartModal = document.getElementById('enlargedChartModal');
+    const closeEnlargedChartModalBtn = document.getElementById('closeEnlargedChartModalBtn');
+    const enlargedChartContainer = document.getElementById('enlarged-chart-container');
+
+    // Funkcje do zarządzania scrollowaniem
+    function disableBodyScroll() {
+        document.body.classList.add('modal-open');
+    }
+
+    function enableBodyScroll() {
+        document.body.classList.remove('modal-open');
+    }
+
     // --- Pamięć podręczna i stan aplikacji ---
     let cachedUsers = [];
     let allUsersForPermissions = []; // Nowa zmienna do przechowywania wszystkich użytkowników
@@ -144,6 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         totalBalanceContainer.style.display = 'block';
                         usersSection.style.display = 'block';
                         userCard.style.display = 'none';
+                        showDetailsBtn.style.display = 'none';
                         
                         // AKTYWACJA: Uruchom inicjalizację użytkowników terminala
                         initializeTerminalUsers(); 
@@ -154,6 +178,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         totalBalanceContainer.style.display = 'none';
                         usersSection.style.display = 'none';
                         userCard.style.display = 'block';
+                        monthlyProfitsSection.style.display = 'block';
+                        showDetailsBtn.style.display = 'none';
                         usernameDisplay.textContent = loggedInUser.name;
                     }
                     displayUserSummaryCards(cachedUsers, loggedInUser);
@@ -316,6 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await updateDoc(doc(db, "users", userId), updateData);
             await recalculateAllBalances();
             editUserModal.style.display = 'none';
+            enableBodyScroll();
         } catch (error) {
             console.error("Błąd podczas aktualizacji użytkownika: ", error);
         }
@@ -336,6 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         editUserModal.style.display = 'block';
+        disableBodyScroll();
     }
 
     function openDeleteModal(userId, userName) {
@@ -343,6 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
         userNameToDelete = userName;
         deleteUserName.textContent = userName;
         deleteUserModal.style.display = 'block';
+        disableBodyScroll();
     }
 
     async function deleteUser(userId, userName) {
@@ -405,6 +434,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const userCard = document.createElement('div');
             userCard.className = 'user-summary-card';
             userCard.style.backgroundColor = user.color;
+            userCard.style.cursor = 'pointer'; // Dodaj kursor wskazujący na możliwość kliknięcia
+            userCard.setAttribute('data-user-id', user.id); // Dodaj ID użytkownika
             const startBalance = user.startBalance || 0;
             const currentBalance = user.currentBalance || 0;
             let percentageChange = 0;
@@ -475,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (type === 'trade') {
             if (!topciuUser) throw new Error('Brak aktywnego użytkownika "Topciu" z wymaganymi uprawnieniami.');
 
-            // U��yj przefiltrowanej listy `activeUsers` do obliczeń
+            // Użyj przefiltrowanej listy `activeUsers` do obliczeń
             const oldTotalBalance = activeUsers.reduce((sum, u) => sum + u.currentBalance, 0);
             const newTotalBalance = amount;
             const profitLoss = newTotalBalance - oldTotalBalance;
@@ -625,19 +656,198 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+        drawMonthlyProfitsChart(transactions, currentUser); // Wywołaj funkcję rysowania wykresu
+        
+        // Oblicz szczegółowe statystyki automatycznie tylko dla użytkowników niebędących Topcien
+        if (currentUser && currentUser.name !== 'Topciu') {
+            calculateDetailedStats(transactions, currentUser);
+        }
+    }
+
+    function calculateDetailedStats(transactions, currentUser) {
+        if (!currentUser) return;
+
+        const now = new Date();
+        const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+
+        let currentMonthProfit = 0;
+        let totalTrades = 0;
+        let profitableTrades = 0;
+        let lossTrades = 0;
+
+        // Oblicz saldo na początku bieżącego miesiąca
+        let balanceAtMonthStart = currentUser.startBalance || 0;
+        
+        // Oblicz wszystkie transakcje do początku bieżącego miesiąca
+        transactions.forEach(transaction => {
+            if (transaction.type === 'trade' && transaction.details) {
+                const userDetail = Object.values(transaction.details).find(detail => detail.name === currentUser.name);
+                if (userDetail) {
+                    const transactionDate = transaction.createdAt.toDate();
+                    let userProfit = userDetail.profitLossShare - (userDetail.commissionPaid || 0);
+                    
+                    // Dla Topcia dodaj prowizje zebrane od innych użytkowników
+                    if (currentUser.name === 'Topciu' && userDetail.commissionCollected) {
+                        userProfit += userDetail.commissionCollected;
+                    }
+                    
+                    if (transactionDate < currentMonth) {
+                        // Transakcje przed bieżącym miesiącem wpływają na saldo początkowe
+                        balanceAtMonthStart += userProfit;
+                    }
+                }
+            }
+            
+            // Dodaj wpłaty i wypłaty do salda początkowego
+            if ((transaction.type === 'deposit' || transaction.type === 'withdrawal') && transaction.userName === currentUser.name) {
+                const transactionDate = transaction.createdAt.toDate();
+                if (transactionDate < currentMonth) {
+                    balanceAtMonthStart += transaction.type === 'deposit' ? transaction.amount : -transaction.amount;
+                }
+            }
+        });
+
+        // Oblicz statystyki z transakcji bieżącego miesiąca
+        transactions.forEach(transaction => {
+            if (transaction.type === 'trade' && transaction.details) {
+                const userDetail = Object.values(transaction.details).find(detail => detail.name === currentUser.name);
+                if (userDetail) {
+                    const transactionDate = transaction.createdAt.toDate();
+                    let userProfit = userDetail.profitLossShare - (userDetail.commissionPaid || 0);
+                    
+                    // Dla Topcia dodaj prowizje zebrane od innych użytkowników
+                    if (currentUser.name === 'Topciu' && userDetail.commissionCollected) {
+                        userProfit += userDetail.commissionCollected;
+                    }
+                    
+                    totalTrades++;
+                    
+                    if (userProfit > 0) {
+                        profitableTrades++;
+                    } else if (userProfit < 0) {
+                        lossTrades++;
+                    }
+
+                    // Miesięczne zyski tylko z bieżącego miesiąca
+                    if (transactionDate >= currentMonth && transactionDate <= currentMonthEnd) {
+                        currentMonthProfit += userProfit;
+                    }
+                }
+            }
+        });
+
+        // Oblicz miesięczną zmianę procentową na podstawie salda początkowego miesiąca
+        let monthlyChangePercent = 0;
+        if (balanceAtMonthStart > 0) {
+            monthlyChangePercent = (currentMonthProfit / balanceAtMonthStart) * 100;
+        } else if (currentMonthProfit !== 0) {
+            monthlyChangePercent = currentMonthProfit > 0 ? 100 : -100;
+        }
+
+        // Oblicz skuteczność
+        const successRate = totalTrades > 0 ? (profitableTrades / totalTrades) * 100 : 0;
+
+        // Aktualizuj elementy DOM
+        document.getElementById('monthlyProfit').textContent = `${currentMonthProfit.toFixed(2)} USD`;
+        document.getElementById('monthlyChange').textContent = `${monthlyChangePercent.toFixed(1)}%`;
+        document.getElementById('totalTrades').textContent = totalTrades;
+        document.getElementById('profitableTrades').textContent = profitableTrades;
+        document.getElementById('lossTrades').textContent = lossTrades;
+        document.getElementById('successRate').textContent = `${successRate.toFixed(1)}%`;
+
+        // Dodaj kolory do wartości
+        const monthlyProfitEl = document.getElementById('monthlyProfit');
+        const monthlyChangeEl = document.getElementById('monthlyChange');
+        const successRateEl = document.getElementById('successRate');
+
+        monthlyProfitEl.className = currentMonthProfit >= 0 ? 'positive-amount' : 'negative-amount';
+        monthlyChangeEl.className = monthlyChangePercent >= 0 ? 'positive-amount' : 'negative-amount';
+        successRateEl.className = successRate >= 50 ? 'positive-amount' : 'negative-amount';
     }
 
     // --- OBSŁUGA ZDARZEŃ (EVENT LISTENERS) ---
 
-    showAddUserModalBtn.addEventListener('click', () => addUserModal.style.display = 'block');
-    closeAddModalBtn.addEventListener('click', () => addUserModal.style.display = 'none');
-    closeEditModalBtn.addEventListener('click', () => editUserModal.style.display = 'none');
-    closeTransactionDetailsMobileModalBtn.addEventListener('click', () => transactionDetailsMobileModal.style.display = 'none');
+    showAddUserModalBtn.addEventListener('click', () => {
+        addUserModal.style.display = 'block';
+        disableBodyScroll();
+    });
+    
+    closeAddModalBtn.addEventListener('click', () => {
+        addUserModal.style.display = 'none';
+        enableBodyScroll();
+    });
+    
+    closeEditModalBtn.addEventListener('click', () => {
+        editUserModal.style.display = 'none';
+        enableBodyScroll();
+    });
+    
+    closeTransactionDetailsMobileModalBtn.addEventListener('click', () => {
+        transactionDetailsMobileModal.style.display = 'none';
+        enableBodyScroll();
+    });
 
     window.addEventListener('click', (event) => {
-        if (event.target == addUserModal) addUserModal.style.display = "none";
-        if (event.target == editUserModal) editUserModal.style.display = "none";
-        if (event.target == transactionDetailsMobileModal) transactionDetailsMobileModal.style.display = "none";
+        if (event.target == addUserModal) {
+            addUserModal.style.display = "none";
+            enableBodyScroll();
+        }
+        if (event.target == editUserModal) {
+            editUserModal.style.display = "none";
+            enableBodyScroll();
+        }
+        if (event.target == transactionDetailsMobileModal) {
+            transactionDetailsMobileModal.style.display = "none";
+            enableBodyScroll();
+        }
+        if (event.target == detailedStatsModal) {
+            detailedStatsModal.style.display = "none";
+            enableBodyScroll();
+        }
+        if (event.target == enlargedChartModal) {
+            enlargedChartModal.style.display = "none";
+            enableBodyScroll();
+        }
+    });
+
+    // Obsługa modala ze statystykami
+    closeDetailedStatsModalBtn.addEventListener('click', () => {
+        detailedStatsModal.style.display = 'none';
+        enableBodyScroll();
+    });
+
+    // Obsługa modala z większym wykresem
+    closeEnlargedChartModalBtn.addEventListener('click', () => {
+        enlargedChartModal.style.display = 'none';
+        enableBodyScroll();
+    });
+
+    // Obsługa kliknięcia na wykres aby otworzyć większą wersję
+    monthlyProfitsChart.addEventListener('click', () => {
+        if (loggedInUser && loggedInUser.name !== 'Topciu') {
+            drawEnlargedMonthlyProfitsChart(cachedTransactions, loggedInUser);
+            enlargedChartModal.style.display = 'flex';
+            disableBodyScroll();
+        }
+    });
+
+    // Obsługa kliknięcia na kolorowe karty użytkowników
+    userSummaryCards.addEventListener('click', (event) => {
+        const userCard = event.target.closest('.user-summary-card');
+        if (userCard) {
+            const userId = userCard.getAttribute('data-user-id');
+            const user = cachedUsers.find(u => u.id === userId);
+            
+            if (user) {
+                // Oblicz statystyki dla wybranego użytkownika
+                calculateDetailedStats(cachedTransactions, user);
+                detailedStatsModal.style.display = 'flex';
+                disableBodyScroll();
+            }
+        }
     });
 
     // Obsługa przełączania widoczności hasła
@@ -696,6 +906,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                     addUserForm.reset();
                     addUserModal.style.display = 'none';
+                    enableBodyScroll();
                     
                 } catch (error) {
                     console.error("Błąd podczas dodawania użytkownika: ", error);
@@ -734,6 +945,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     await updateDoc(userRef, updateData);
                     addUserModal.style.display = 'none';
+                    enableBodyScroll();
                 } catch (error) {
                     console.error("Błąd podczas nadawania uprawnień: ", error);
                     alert("Wystąpił błąd podczas nadawania uprawnień.");
@@ -784,7 +996,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    closeDeleteUserModalBtn.addEventListener('click', () => deleteUserModal.style.display = 'none');
+    closeDeleteUserModalBtn.addEventListener('click', () => {
+        deleteUserModal.style.display = 'none';
+        enableBodyScroll();
+    });
 
     revokePermissionsBtn.addEventListener('click', async () => {
         if (userIdToDelete) {
@@ -792,6 +1007,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const userRef = doc(db, "users", userIdToDelete);
                 await updateDoc(userRef, { permissions: [] });
                 deleteUserModal.style.display = 'none';
+                enableBodyScroll();
             } catch (error) {
                 console.error("Błąd podczas odbierania uprawnień: ", error);
                 alert("Wystąpił błąd podczas odbierania uprawnień.");
@@ -806,6 +1022,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await recalculateAllBalances();
                 
                 deleteUserModal.style.display = 'none';
+                enableBodyScroll();
             } catch (error) {
                 console.error("Błąd podczas usuwania użytkownika: ", error);
                 alert("Wystąpił błąd podczas usuwania użytkownika.");
@@ -843,6 +1060,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 transactionDetailsMobileContent.innerHTML = detailsHtml;
                 transactionDetailsMobileModal.style.display = 'flex';
+                disableBodyScroll();
             } else { // Logika dla desktopów -> Rozwiń wiersz
                 const detailsContainer = document.getElementById(`details-${transactionId}`);
                 if (detailsContainer) {
@@ -907,6 +1125,15 @@ document.addEventListener('DOMContentLoaded', () => {
             themeToggle.textContent = '🌙';
         }
         localStorage.setItem('theme', theme);
+        
+        // Odśwież wykres po zmianie motywu
+        if (loggedInUser && loggedInUser.name !== 'Topciu') {
+            drawMonthlyProfitsChart(cachedTransactions, loggedInUser);
+            // Jeśli modal z większym wykresem jest otwarty, odśwież go też
+            if (enlargedChartModal.style.display === 'flex') {
+                drawEnlargedMonthlyProfitsChart(cachedTransactions, loggedInUser);
+            }
+        }
     });
 });
 
@@ -935,3 +1162,274 @@ window.addTestTransaction = async function() {
         alert("Wystąpił błąd: " + error.message);
     }
 }
+
+    function drawMonthlyProfitsChart(transactions, currentUser) {
+        if (!currentUser || currentUser.name === 'Topciu') return;
+        
+        const chartElement = document.getElementById('monthly-profits-chart');
+        if (!chartElement) return;
+
+        const ctx = chartElement.getContext('2d');
+        const now = new Date();
+        const monthsData = [];
+        
+        // Przygotuj dane dla ostatnich 6 miesięcy
+        for (let i = 5; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const monthName = date.toLocaleDateString('pl-PL', { month: 'short', year: '2-digit' });
+            monthsData.push({
+                month: monthName,
+                profit: 0,
+                date: date
+            });
+        }
+
+        // Oblicz zyski dla każdego miesiąca
+        transactions.forEach(transaction => {
+            if (transaction.type === 'trade' && transaction.details) {
+                const transactionDate = transaction.createdAt.toDate();
+                const monthIndex = monthsData.findIndex(m => 
+                    m.date.getMonth() === transactionDate.getMonth() && 
+                    m.date.getFullYear() === transactionDate.getFullYear()
+                );
+                
+                if (monthIndex !== -1) {
+                    const userDetail = Object.values(transaction.details).find(detail => detail.name === currentUser.name);
+                    if (userDetail) {
+                        const userProfit = userDetail.profitLossShare - (userDetail.commissionPaid || 0);
+                        monthsData[monthIndex].profit += userProfit;
+                    }
+                }
+            }
+        });
+
+        // Sprawdź czy tryb ciemny jest aktywny
+        const isDarkMode = document.body.classList.contains('dark-mode');
+        const textColor = isDarkMode ? '#ecf0f1' : '#333';
+        const gridColor = isDarkMode ? '#404040' : '#e0e0e0';
+        const positiveColor = isDarkMode ? '#2ecc71' : '#27ae60';
+        const negativeColor = isDarkMode ? '#e67e22' : '#d35400';
+
+        // Wyczyść canvas
+        ctx.clearRect(0, 0, chartElement.width, chartElement.height);
+
+        // Ustawienia wykresu
+        const padding = 40;
+        const chartWidth = chartElement.width - 2 * padding;
+        const chartHeight = chartElement.height - 2 * padding;
+        const barWidth = chartWidth / monthsData.length * 0.6;
+        const barSpacing = chartWidth / monthsData.length * 0.4;
+
+        // Znajdź maksymalną i minimalną wartość
+        const maxProfit = Math.max(...monthsData.map(m => m.profit), 0);
+        const minProfit = Math.min(...monthsData.map(m => m.profit), 0);
+        const range = maxProfit - minProfit || 1;
+
+        // Oblicz pozycję linii zero
+        const zeroY = padding + chartHeight - (0 - minProfit) / range * chartHeight;
+
+        // Narysuj siatkę
+        ctx.strokeStyle = gridColor;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        
+        // Linie poziome
+        for (let i = 0; i <= 4; i++) {
+            const y = padding + (chartHeight / 4) * i;
+            ctx.beginPath();
+            ctx.moveTo(padding, y);
+            ctx.lineTo(padding + chartWidth, y);
+            ctx.stroke();
+        }
+
+        ctx.setLineDash([]);
+
+        // Narysuj linie zero
+        ctx.strokeStyle = textColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(padding, zeroY);
+        ctx.lineTo(padding + chartWidth, zeroY);
+        ctx.stroke();
+
+        // Narysuj słupki
+        monthsData.forEach((data, index) => {
+            const x = padding + (chartWidth / monthsData.length) * index + barSpacing / 2;
+            const barHeight = Math.abs(data.profit) / range * chartHeight;
+            const y = data.profit >= 0 ? zeroY - barHeight : zeroY;
+            
+            ctx.fillStyle = data.profit >= 0 ? positiveColor : negativeColor;
+            ctx.fillRect(x, y, barWidth, barHeight);
+
+            // Dodaj wartość na słupku (tylko jeśli wartość != 0)
+            if (data.profit !== 0) {
+                ctx.fillStyle = textColor;
+                ctx.font = '10px Roboto';
+                ctx.textAlign = 'center';
+                const valueY = data.profit >= 0 ? y - 5 : y + barHeight + 12;
+                ctx.fillText(`${data.profit.toFixed(0)}`, x + barWidth / 2, valueY);
+            }
+
+            // Dodaj etykietę miesiąca
+            ctx.fillStyle = textColor;
+            ctx.font = '9px Roboto';
+            ctx.textAlign = 'center';
+            ctx.fillText(data.month, x + barWidth / 2, padding + chartHeight + 15);
+        });
+
+        // Dodaj etykiety osi Y
+        ctx.fillStyle = textColor;
+        ctx.font = '9px Roboto';
+        ctx.textAlign = 'right';
+        
+        for (let i = 0; i <= 4; i++) {
+            const value = maxProfit - (range / 4) * i;
+            const y = padding + (chartHeight / 4) * i + 3;
+            if (value !== 0) {
+                ctx.fillText(`${value.toFixed(0)}`, padding - 5, y);
+            }
+        }
+    }
+
+    function drawEnlargedMonthlyProfitsChart(transactions, currentUser) {
+        if (!currentUser || currentUser.name === 'Topciu') return;
+        
+        const chartElement = document.getElementById('enlarged-monthly-profits-chart');
+        if (!chartElement) return;
+
+        const ctx = chartElement.getContext('2d');
+        const now = new Date();
+        const monthsData = [];
+        
+        // Przygotuj dane dla ostatnich 12 miesięcy (więcej dla większego wykresu)
+        for (let i = 11; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const monthName = date.toLocaleDateString('pl-PL', { month: 'short', year: '2-digit' });
+            monthsData.push({
+                month: monthName,
+                profit: 0,
+                date: date
+            });
+        }
+
+        // Oblicz zyski dla każdego miesiąca
+        transactions.forEach(transaction => {
+            if (transaction.type === 'trade' && transaction.details) {
+                const transactionDate = transaction.createdAt.toDate();
+                const monthIndex = monthsData.findIndex(m => 
+                    m.date.getMonth() === transactionDate.getMonth() && 
+                    m.date.getFullYear() === transactionDate.getFullYear()
+                );
+                
+                if (monthIndex !== -1) {
+                    const userDetail = Object.values(transaction.details).find(detail => detail.name === currentUser.name);
+                    if (userDetail) {
+                        const userProfit = userDetail.profitLossShare - (userDetail.commissionPaid || 0);
+                        monthsData[monthIndex].profit += userProfit;
+                    }
+                }
+            }
+        });
+
+        // Sprawdź czy tryb ciemny jest aktywny
+        const isDarkMode = document.body.classList.contains('dark-mode');
+        const textColor = isDarkMode ? '#ecf0f1' : '#333';
+        const gridColor = isDarkMode ? '#404040' : '#e0e0e0';
+        const positiveColor = isDarkMode ? '#2ecc71' : '#27ae60';
+        const negativeColor = isDarkMode ? '#e67e22' : '#d35400';
+
+        // Wyczyść canvas
+        ctx.clearRect(0, 0, chartElement.width, chartElement.height);
+
+        // Ustawienia wykresu (większe marginesy dla większego wykresu)
+        const padding = 60;
+        const chartWidth = chartElement.width - 2 * padding;
+        const chartHeight = chartElement.height - 2 * padding;
+        const barWidth = chartWidth / monthsData.length * 0.7;
+        const barSpacing = chartWidth / monthsData.length * 0.3;
+
+        // Znajdź maksymalną i minimalną wartość
+        const maxProfit = Math.max(...monthsData.map(m => m.profit), 0);
+        const minProfit = Math.min(...monthsData.map(m => m.profit), 0);
+        const range = maxProfit - minProfit || 1;
+
+        // Oblicz pozycję linii zero
+        const zeroY = padding + chartHeight - (0 - minProfit) / range * chartHeight;
+
+        // Narysuj siatkę
+        ctx.strokeStyle = gridColor;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        
+        // Linie poziome
+        for (let i = 0; i <= 6; i++) {
+            const y = padding + (chartHeight / 6) * i;
+            ctx.beginPath();
+            ctx.moveTo(padding, y);
+            ctx.lineTo(padding + chartWidth, y);
+            ctx.stroke();
+        }
+
+        ctx.setLineDash([]);
+
+        // Narysuj linie zero
+        ctx.strokeStyle = textColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(padding, zeroY);
+        ctx.lineTo(padding + chartWidth, zeroY);
+        ctx.stroke();
+
+        // Narysuj słupki
+        monthsData.forEach((data, index) => {
+            const x = padding + (chartWidth / monthsData.length) * index + barSpacing / 2;
+            const barHeight = Math.abs(data.profit) / range * chartHeight;
+            const y = data.profit >= 0 ? zeroY - barHeight : zeroY;
+            
+            ctx.fillStyle = data.profit >= 0 ? positiveColor : negativeColor;
+            ctx.fillRect(x, y, barWidth, barHeight);
+
+            // Dodaj wartość na słupku (tylko jeśli wartość != 0)
+            if (data.profit !== 0) {
+                ctx.fillStyle = textColor;
+                ctx.font = '14px Roboto';
+                ctx.textAlign = 'center';
+                const valueY = data.profit >= 0 ? y - 8 : y + barHeight + 18;
+                ctx.fillText(`${data.profit.toFixed(0)}`, x + barWidth / 2, valueY);
+            }
+
+            // Dodaj etykietę miesiąca
+            ctx.fillStyle = textColor;
+            ctx.font = '12px Roboto';
+            ctx.textAlign = 'center';
+            ctx.fillText(data.month, x + barWidth / 2, padding + chartHeight + 25);
+        });
+
+        // Dodaj etykiety osi Y
+        ctx.fillStyle = textColor;
+        ctx.font = '12px Roboto';
+        ctx.textAlign = 'right';
+        
+        for (let i = 0; i <= 6; i++) {
+            const value = maxProfit - (range / 6) * i;
+            const y = padding + (chartHeight / 6) * i + 4;
+            if (value !== 0) {
+                ctx.fillText(`${value.toFixed(0)}`, padding - 10, y);
+            }
+        }
+
+        // Dodaj tytuł osi Y
+        ctx.save();
+        ctx.translate(25, padding + chartHeight / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.font = '14px Roboto';
+        ctx.fillText('Zysk (USD)', 0, 0);
+        ctx.restore();
+
+        // Dodaj tytuł osi X
+        ctx.fillStyle = textColor;
+        ctx.font = '14px Roboto';
+        ctx.textAlign = 'center';
+        ctx.fillText('Miesiąc', padding + chartWidth / 2, chartElement.height - 10);
+    }

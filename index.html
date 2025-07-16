@@ -69,8 +69,18 @@
             <button id="logout-button">Wyloguj</button>
         </section>
 
+        <section id="monthly-profits-section" class="card" style="display: none;">
+            <h2>Wykres</h2>
+            <div id="chart-container">
+                <canvas id="monthly-profits-chart" width="400" height="200"></canvas>
+            </div>
+        </section>
+
         <section id="summary-section" class="card">
-            <h2>Podsumowanie finansowe</h2>
+            <div class="card-header">
+                <h2>Podsumowanie finansowe</h2>
+                <button id="showDetailsBtn" class="circle-btn details-btn" title="Szczegóły" style="display: none;">📊</button>
+            </div>
             <div id="financial-summary">
                 <p id="totalBalanceContainer">Łączne saldo: <strong id="total-balance">0.00 USD</strong></p>
             </div>
@@ -202,6 +212,53 @@
             <h2>Szczegóły transakcji</h2>
             <div id="transactionDetailsMobileContent">
                 <!-- Dynamiczna zawartość będzie tutaj wstrzykiwana przez JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal ze SZCZEGÓŁOWYMI STATYSTYKAMI -->
+    <div id="detailedStatsModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeDetailedStatsModalBtn">&times;</span>
+            <h2>Szczegółowe statystyki</h2>
+            <div id="detailedStatsContent">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">Miesięczny zysk:</span>
+                        <span class="stat-value" id="monthlyProfit">0.00 USD</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Miesięczna zmiana:</span>
+                        <span class="stat-value" id="monthlyChange">0.0%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Ilość transakcji:</span>
+                        <span class="stat-value" id="totalTrades">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Transakcje zyskowne:</span>
+                        <span class="stat-value" id="profitableTrades">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Transakcje stratne:</span>
+                        <span class="stat-value" id="lossTrades">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Skuteczność:</span>
+                        <span class="stat-value" id="successRate">0.0%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal z WIĘKSZYM WYKRESEM -->
+    <div id="enlargedChartModal" class="modal">
+        <div class="modal-content enlarged-chart-modal">
+            <span class="close-button" id="closeEnlargedChartModalBtn">&times;</span>
+            <h2>Miesięczne zyski - szczegółowy wykres</h2>
+            <div id="enlarged-chart-container">
+                <canvas id="enlarged-monthly-profits-chart" width="800" height="400"></canvas>
             </div>
         </div>
     </div>

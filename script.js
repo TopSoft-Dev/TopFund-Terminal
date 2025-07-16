@@ -636,8 +636,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             // Dla Topcia - pokazuj kwoty netto i brutto z prowizjami
                             if (detail.name === 'Topciu') {
                                 // Dla wpisu Topcia
-                                const netAmount = detail.profitLossShare - (detail.commissionCollected || 0); // Kwota netto (bez prowizji)
-                                const grossAmount = detail.profitLossShare; // Kwota brutto (z prowizjami)
+                                const netAmount = detail.profitLossShare; // Kwota netto (podstawowy zysk bez prowizji)
+                                const grossAmount = detail.profitLossShare + (detail.commissionCollected || 0); // Kwota brutto (podstawowy zysk + prowizje)
                                 const commission = detail.commissionCollected || 0;
                                 
                                 const netClass = netAmount >= 0 ? 'positive-amount' : 'negative-amount';
@@ -1088,8 +1088,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             // Dla Topcia - pokazuj kwoty netto i brutto z prowizjami
                             if (detail.name === 'Topciu') {
                                 // Dla wpisu Topcia
-                                const netAmount = detail.profitLossShare - (detail.commissionCollected || 0); // Kwota netto (bez prowizji)
-                                const grossAmount = detail.profitLossShare; // Kwota brutto (z prowizjami)
+                                const netAmount = detail.profitLossShare; // Kwota netto (podstawowy zysk bez prowizji)
+                                const grossAmount = detail.profitLossShare + (detail.commissionCollected || 0); // Kwota brutto (podstawowy zysk + prowizje)
                                 const commission = detail.commissionCollected || 0;
                                 
                                 const netClass = netAmount >= 0 ? 'positive-amount' : 'negative-amount';

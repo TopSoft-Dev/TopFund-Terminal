@@ -302,6 +302,19 @@ body.dark-mode .user-detail {
     z-index: 2;
 }
 
+/* Stylowanie przyciemnianej karty dla zmiany procentowej */
+.user-summary-card .percentage-change {
+    background-color: rgba(0, 0, 0, 0.4);
+    border-radius: 8px;
+    padding: 6px 12px;
+    margin-top: 8px;
+    font-weight: bold;
+    font-size: 0.9em;
+    backdrop-filter: blur(2px);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 .card-main-content h4,
 .card-main-content p {
     margin: 0;
@@ -823,6 +836,13 @@ body.dark-mode .details-content {
     .percentage-change {
         font-size: 1.1em;
         padding: 3px 8px;
+        background-color: rgba(0, 0, 0, 0.4);
+        border-radius: 8px;
+        margin-top: 8px;
+        font-weight: bold;
+        backdrop-filter: blur(2px);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
 
     input[type="text"],
@@ -1357,5 +1377,3 @@ body.dark-mode .details-content {
         padding: 5px;
     }
 }
-
-/* Zapewnienie, że formularze w modalach nie będą się rozlewać */

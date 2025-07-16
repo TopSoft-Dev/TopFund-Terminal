@@ -713,8 +713,9 @@ body.dark-mode .close-button:focus {
 #transactions-history td.action-buttons {
     display: flex;
     gap: 8px;
-    align-items: center;
+    align-items: flex-end; /* Wyrównuje zawartość do dołu */
     justify-content: flex-end; /* Wyrównuje zawartość do prawej */
+    min-height: 40px; /* Zmniejszona minimalna wysokość komórki */
 }
 
 .toggle-details-btn {

@@ -258,41 +258,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     const user = recalculatedUsers[transaction.userId];
                     if (user) user.currentBalance += (transaction.type === 'deposit' ? transaction.amount : -transaction.amount);
                 } else if (transaction.type === 'trade') {
-                    const profitLoss = transaction.amount;
-
-                    // Oblicz saldo tylko dla AKTYWNYCH użytkowników
-                    const totalBalanceBeforeTrade = activeUsers.reduce((sum, u) => sum + recalculatedUsers[u.id].currentBalance, 0);
-
-                    if (totalBalanceBeforeTrade > 0) {
-                        let totalCommissionCollected = 0;
-                        let userUpdates = {};
-
-                        // Iteruj tylko po AKTYWNYCH użytkownikach
-                        for (const user of activeUsers) {
-                            const userId = user.id;
+                    // Dla transakcji typu 'trade', użyj zapisanych szczegółów do zastosowania zysku/straty i prowizji
+                    if (transaction.details) {
+                        for (const userId in transaction.details) {
+                            const detail = transaction.details[userId];
                             const userState = recalculatedUsers[userId];
-                            const userContributionRatio = userState.currentBalance / totalBalanceBeforeTrade;
-                            const userProfitLoss = profitLoss * userContributionRatio;
-                            let userShareAfterCommission = userProfitLoss;
-                            let commissionAmount = 0;
-
-                            if (user.name !== 'Topciu' && userProfitLoss > 0) {
-                                commissionAmount = userProfitLoss * (user.commission / 100);
-                                userShareAfterCommission -= commissionAmount;
-                                totalCommissionCollected += commissionAmount;
+                            if (userState) {
+                                // Zastosuj zmianę salda z oryginalnej transakcji
+                                userState.currentBalance += (detail.newBalance - detail.oldBalance);
                             }
-                            userUpdates[userId] = { newBalance: userState.currentBalance + userShareAfterCommission };
-                        }
-
-                        const topciuId = Object.keys(recalculatedUsers).find(id => recalculatedUsers[id].name === 'Topciu');
-
-                        // Zastosuj aktualizacje tylko dla AKTYWNYCH użytkowników
-                        for (const userId in userUpdates) {
-                            recalculatedUsers[userId].currentBalance = userUpdates[userId].newBalance;
-                        }
-
-                        if (topciuId && activeUserIds.has(topciuId) && totalCommissionCollected > 0) {
-                            recalculatedUsers[topciuId].currentBalance += totalCommissionCollected;
                         }
                     }
                 }
@@ -545,29 +519,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function displayTransactions(transactions, currentUser) {
         if (!transactionsHistoryBody) return;
-
+    
         const oneMonthAgo = new Date();
         oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-
-        const filteredTransactions = transactions.filter(transaction => {
+    
+        let timeFilteredTransactions = transactions.filter(transaction => {
             const transactionDate = transaction.createdAt.toDate();
             return isArchiveView ? transactionDate < oneMonthAgo : transactionDate >= oneMonthAgo;
         });
-
+    
+        // Nowa logika filtrowania dla użytkowników innych niż "Topciu"
+        let finalFilteredTransactions;
+        if (currentUser && currentUser.name !== 'Topciu') {
+            finalFilteredTransactions = timeFilteredTransactions.filter(transaction => {
+                if ((transaction.type === 'deposit' || transaction.type === 'withdrawal')) {
+                    // Pokaż tylko transakcje (wpłaty/wypłaty) bieżącego użytkownika
+                    return transaction.userName === currentUser.name;
+                } else if (transaction.type === 'trade') {
+                    // Dla transakcji typu 'trade', pokaż tylko jeśli użytkownik brał w niej udział
+                    return transaction.details && Object.values(transaction.details).some(detail => detail.name === currentUser.name);
+                }
+                return false; // Domyślnie ukryj, jeśli nie pasuje do żadnego warunku
+            });
+        } else {
+            // "Topciu" widzi wszystko
+            finalFilteredTransactions = timeFilteredTransactions;
+        }
+    
         transactionsHistoryBody.innerHTML = '';
-        if (filteredTransactions.length === 0) {
+        if (finalFilteredTransactions.length === 0) {
             transactionsHistoryBody.innerHTML = `<tr><td colspan="6">${isArchiveView ? 'Archiwum jest puste.' : 'Brak transakcji w tym miesiącu.'}</td></tr>`;
             return;
         }
-
-        filteredTransactions.forEach(transaction => {
+    
+        finalFilteredTransactions.forEach(transaction => {
             const row = document.createElement('tr');
             let descriptionText = "";
             let amountText = '';
             let balanceAfterText = '';
             if (transaction.type === 'deposit' || transaction.type === 'withdrawal') {
                 descriptionText = `${transaction.userName}`;
-                amountText = `<span>${transaction.amount > 0 ? '+' : ''}${transaction.amount.toFixed(2)}</span>&nbsp;USD`;
+                amountText = `<span>${transaction.type === 'deposit' ? '+' : '-'}${transaction.amount.toFixed(2)}</span>&nbsp;USD`;
                 balanceAfterText = `<span>${transaction.balanceAfter.toFixed(2)}</span>&nbsp;USD`;
             } else if (transaction.type === 'trade') {
                 let displayAmount = transaction.amount;
@@ -607,7 +599,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let detailsHtml = '';
                 for (const userId in transaction.details) {
                     const detail = transaction.details[userId];
-                    // Only show details if loggedInUser is Topciu or if the detail belongs to the loggedInUser
+                    // Only show details if loggedInUser is Topciu or if the detail belongs to the the loggedInUser
                     if (currentUser && (currentUser.name === 'Topciu' || detail.name === currentUser.name)) {
                         const profitLossClass = detail.profitLossShare > 0 ? 'positive-amount' : 'negative-amount';
                         let commissionText = '';
@@ -622,12 +614,15 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>`;
                     }
                 }
-                const detailsRow = document.createElement('tr');
-                detailsRow.className = 'transaction-details-container';
-                detailsRow.id = `details-${transaction.id}`;
-                detailsRow.style.display = 'none';
-                detailsRow.innerHTML = `<td colspan="6"><div class="details-content">${detailsHtml}</div></td>`;
-                transactionsHistoryBody.appendChild(detailsRow);
+                // Dodaj wiersz szczegółów tylko jeśli detailsHtml nie jest pusty
+                if (detailsHtml) {
+                    const detailsRow = document.createElement('tr');
+                    detailsRow.className = 'transaction-details-container';
+                    detailsRow.id = `details-${transaction.id}`;
+                    detailsRow.style.display = 'none';
+                    detailsRow.innerHTML = `<td colspan="6"><div class="details-content">${detailsHtml}</div></td>`;
+                    transactionsHistoryBody.appendChild(detailsRow);
+                }
             }
         });
     }
@@ -701,7 +696,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                     addUserForm.reset();
                     addUserModal.style.display = 'none';
-                    alert(`Użytkownik ${userName} został pomyślnie dodany.`);
+                    
                 } catch (error) {
                     console.error("Błąd podczas dodawania użytkownika: ", error);
                     alert("Wystąpił błąd podczas dodawania użytkownika.");
@@ -809,7 +804,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 await deleteDoc(doc(db, "users", userIdToDelete));
                 await recalculateAllBalances();
-                alert(`Użytkownik ${userNameToDelete} został trwale usunięty.`);
+                
                 deleteUserModal.style.display = 'none';
             } catch (error) {
                 console.error("Błąd podczas usuwania użytkownika: ", error);
@@ -868,7 +863,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isArchiveView = !isArchiveView;
         toggleArchiveBtn.textContent = isArchiveView ? 'Pokaż aktualne' : 'Pokaż archiwum';
         toggleArchiveBtn.classList.toggle('active');
-        displayTransactions(cachedTransactions); // Odśwież widok z nowym filtrem
+        displayTransactions(cachedTransactions, loggedInUser); // Odśwież widok z nowym filtrem
     });
 
     // --- GŁÓWNE NASŁUCHIWANIE NA ZMIANY W BAZIE ---

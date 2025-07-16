@@ -632,17 +632,57 @@ document.addEventListener('DOMContentLoaded', () => {
                     const detail = transaction.details[userId];
                     // Only show details if loggedInUser is Topciu or if the detail belongs to the the loggedInUser
                     if (currentUser && (currentUser.name === 'Topciu' || detail.name === currentUser.name)) {
-                        const profitLossClass = detail.profitLossShare > 0 ? 'positive-amount' : 'negative-amount';
-                        let commissionText = '';
-                        if (detail.commissionPaid && detail.commissionPaid > 0) {
-                            commissionText = ` (Prowizja:&nbsp;<span class="negative-amount">-${detail.commissionPaid.toFixed(2)}</span>&nbsp;USD)`;
+                        if (currentUser.name === 'Topciu') {
+                            // Dla Topcia - pokazuj kwoty netto i brutto z prowizjami
+                            if (detail.name === 'Topciu') {
+                                // Dla wpisu Topcia
+                                const netAmount = detail.profitLossShare - (detail.commissionCollected || 0); // Kwota netto (bez prowizji)
+                                const grossAmount = detail.profitLossShare; // Kwota brutto (z prowizjami)
+                                const commission = detail.commissionCollected || 0;
+                                
+                                const netClass = netAmount >= 0 ? 'positive-amount' : 'negative-amount';
+                                const grossClass = grossAmount >= 0 ? 'positive-amount' : 'negative-amount';
+                                const commissionClass = commission >= 0 ? 'positive-amount' : 'negative-amount';
+                                
+                                detailsHtml += `
+                                    <div class="transaction-detail-row">
+                                        <span class="detail-name">${detail.name}: </span>
+                                        <span class="${netClass}">${netAmount >= 0 ? '+' : ''}${netAmount.toFixed(2)}</span>&nbsp;USD&nbsp;Netto&nbsp;
+                                        (<span class="${grossClass}">${grossAmount >= 0 ? '+' : ''}${grossAmount.toFixed(2)}</span>&nbsp;USD&nbsp;Brutto,&nbsp;Prowizje:&nbsp;<span class="${commissionClass}">${commission >= 0 ? '+' : ''}${commission.toFixed(2)}</span>&nbsp;USD)
+                                        <span class="detail-new-balance">Saldo:&nbsp;<span class="${detail.newBalance >= 0 ? 'positive-amount' : 'negative-amount'}">${detail.newBalance.toFixed(2)}</span>&nbsp;USD</span>
+                                    </div>`;
+                            } else {
+                                // Dla innych użytkowników widzianych przez Topcia
+                                const netAmount = detail.profitLossShare - (detail.commissionPaid || 0); // Kwota netto (po odliczeniu prowizji)
+                                const grossAmount = detail.profitLossShare; // Kwota brutto (przed prowizją)
+                                const commission = detail.commissionPaid || 0;
+                                
+                                const netClass = netAmount >= 0 ? 'positive-amount' : 'negative-amount';
+                                const grossClass = grossAmount >= 0 ? 'positive-amount' : 'negative-amount';
+                                const commissionClass = commission >= 0 ? 'positive-amount' : 'negative-amount';
+                                
+                                detailsHtml += `
+                                    <div class="transaction-detail-row">
+                                        <span class="detail-name">${detail.name}: </span>
+                                        <span class="${netClass}">${netAmount >= 0 ? '+' : ''}${netAmount.toFixed(2)}</span>&nbsp;USD&nbsp;Netto&nbsp;
+                                        (<span class="${grossClass}">${grossAmount >= 0 ? '+' : ''}${grossAmount.toFixed(2)}</span>&nbsp;USD&nbsp;Brutto,&nbsp;Prowizja:&nbsp;<span class="negative-amount">-${commission.toFixed(2)}</span>&nbsp;USD)
+                                        <span class="detail-new-balance">Saldo:&nbsp;<span class="${detail.newBalance >= 0 ? 'positive-amount' : 'negative-amount'}">${detail.newBalance.toFixed(2)}</span>&nbsp;USD</span>
+                                    </div>`;
+                            }
+                        } else {
+                            // Dla innych użytkowników - stary sposób wyświetlania
+                            const profitLossClass = detail.profitLossShare > 0 ? 'positive-amount' : 'negative-amount';
+                            let commissionText = '';
+                            if (detail.commissionPaid && detail.commissionPaid > 0) {
+                                commissionText = ` (Prowizja:&nbsp;<span class="negative-amount">-${detail.commissionPaid.toFixed(2)}</span>&nbsp;USD)`;
+                            }
+                            detailsHtml += `
+                                <div class="transaction-detail-row">
+                                    <span class="detail-name">${detail.name}: </span>
+                                    <span class="${profitLossClass}">${detail.profitLossShare > 0 ? '+' : ''}${detail.profitLossShare.toFixed(2)}</span>&nbsp;USD${commissionText}
+                                    <span class="detail-new-balance">Saldo:&nbsp;<span class="${detail.newBalance >= 0 ? 'positive-amount' : 'negative-amount'}">${detail.newBalance.toFixed(2)}</span>&nbsp;USD</span>
+                                </div>`;
                         }
-                        detailsHtml += `
-                            <div class="transaction-detail-row">
-                                <span class="detail-name">${detail.name}: </span>
-                                <span class="${profitLossClass}">${detail.profitLossShare > 0 ? '+' : ''}${detail.profitLossShare.toFixed(2)}</span>&nbsp;USD${commissionText}
-                                <span class="detail-new-balance">Saldo:&nbsp;<span class="${detail.newBalance >= 0 ? 'positive-amount' : 'negative-amount'}">${detail.newBalance.toFixed(2)}</span>&nbsp;USD</span>
-                            </div>`;
                     }
                 }
                 // Dodaj wiersz szczegółów tylko jeśli detailsHtml nie jest pusty
@@ -1044,18 +1084,59 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (const userId in transaction.details) {
                     const detail = transaction.details[userId];
                     if (loggedInUser && (loggedInUser.name === 'Topciu' || detail.name === loggedInUser.name)) {
-                        const profitLossClass = detail.profitLossShare >= 0 ? 'positive-amount' : 'negative-amount';
-                        const commissionText = (detail.commissionPaid && detail.commissionPaid > 0) 
-                            ? `<p>Prowizja: <span class="negative-amount">-${detail.commissionPaid.toFixed(2)} USD</span></p>` : '';
+                        if (loggedInUser.name === 'Topciu') {
+                            // Dla Topcia - pokazuj kwoty netto i brutto z prowizjami
+                            if (detail.name === 'Topciu') {
+                                // Dla wpisu Topcia
+                                const netAmount = detail.profitLossShare - (detail.commissionCollected || 0); // Kwota netto (bez prowizji)
+                                const grossAmount = detail.profitLossShare; // Kwota brutto (z prowizjami)
+                                const commission = detail.commissionCollected || 0;
+                                
+                                const netClass = netAmount >= 0 ? 'positive-amount' : 'negative-amount';
+                                const grossClass = grossAmount >= 0 ? 'positive-amount' : 'negative-amount';
+                                const commissionClass = commission >= 0 ? 'positive-amount' : 'negative-amount';
+                                
+                                detailsHtml += `
+                                    <div class="mobile-detail-card">
+                                        <h4>${detail.name}</h4>
+                                        <p>Zysk/Strata: <span class="${netClass}">${netAmount >= 0 ? '+' : ''}${netAmount.toFixed(2)} USD Netto</span></p>
+                                        <p>(<span class="${grossClass}">${grossAmount >= 0 ? '+' : ''}${grossAmount.toFixed(2)} USD Brutto</span>, Prowizje: <span class="${commissionClass}">${commission >= 0 ? '+' : ''}${commission.toFixed(2)} USD</span>)</p>
+                                        <p>Saldo po operacji: <strong>${detail.newBalance.toFixed(2)} USD</strong></p>
+                                    </div>
+                                `;
+                            } else {
+                                // Dla innych użytkowników widzianych przez Topcia
+                                const netAmount = detail.profitLossShare - (detail.commissionPaid || 0); // Kwota netto (po odliczeniu prowizji)
+                                const grossAmount = detail.profitLossShare; // Kwota brutto (przed prowizją)
+                                const commission = detail.commissionPaid || 0;
+                                
+                                const netClass = netAmount >= 0 ? 'positive-amount' : 'negative-amount';
+                                const grossClass = grossAmount >= 0 ? 'positive-amount' : 'negative-amount';
+                                
+                                detailsHtml += `
+                                    <div class="mobile-detail-card">
+                                        <h4>${detail.name}</h4>
+                                        <p>Zysk/Strata: <span class="${netClass}">${netAmount >= 0 ? '+' : ''}${netAmount.toFixed(2)} USD Netto</span></p>
+                                        <p>(<span class="${grossClass}">${grossAmount >= 0 ? '+' : ''}${grossAmount.toFixed(2)} USD Brutto</span>, Prowizja: <span class="negative-amount">-${commission.toFixed(2)} USD</span>)</p>
+                                        <p>Saldo po operacji: <strong>${detail.newBalance.toFixed(2)} USD</strong></p>
+                                    </div>
+                                `;
+                            }
+                        } else {
+                            // Dla innych użytkowników - stary sposób wyświetlania
+                            const profitLossClass = detail.profitLossShare >= 0 ? 'positive-amount' : 'negative-amount';
+                            const commissionText = (detail.commissionPaid && detail.commissionPaid > 0) 
+                                ? `<p>Prowizja: <span class="negative-amount">-${detail.commissionPaid.toFixed(2)} USD</span></p>` : '';
 
-                        detailsHtml += `
-                            <div class="mobile-detail-card">
-                                <h4>${detail.name}</h4>
-                                <p>Zysk/Strata: <span class="${profitLossClass}">${detail.profitLossShare >= 0 ? '+' : ''}${detail.profitLossShare.toFixed(2)} USD</span></p>
-                                ${commissionText}
-                                <p>Saldo po operacji: <strong>${detail.newBalance.toFixed(2)} USD</strong></p>
-                            </div>
-                        `;
+                            detailsHtml += `
+                                <div class="mobile-detail-card">
+                                    <h4>${detail.name}</h4>
+                                    <p>Zysk/Strata: <span class="${profitLossClass}">${detail.profitLossShare >= 0 ? '+' : ''}${detail.profitLossShare.toFixed(2)} USD</span></p>
+                                    ${commissionText}
+                                    <p>Saldo po operacji: <strong>${detail.newBalance.toFixed(2)} USD</strong></p>
+                                </div>
+                            `;
+                        }
                     }
                 }
                 transactionDetailsMobileContent.innerHTML = detailsHtml;

@@ -323,14 +323,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const userId = document.getElementById('editUserId').value;
         const newStartBalance = parseFloat(document.getElementById('editStartBalance').value);
         const newColor = document.getElementById('editColor').value;
+        const newCommission = parseFloat(document.getElementById('editCommission').value);
         const newPassword = editPasswordInput.value; // Pobierz nowe hasło
 
-        if (isNaN(newStartBalance)) {
-            alert('Proszę podać prawidłowe saldo.');
+        if (isNaN(newStartBalance) || isNaN(newCommission)) {
+            alert('Proszę podać prawidłowe wartości liczbowe dla salda i prowizji.');
             return;
         }
 
-        let updateData = { startBalance: newStartBalance, color: newColor };
+        let updateData = { startBalance: newStartBalance, color: newColor, commission: newCommission };
 
         // Jeśli Topciu jest zalogowany i podano nowe hasło, zahaszuj je i dodaj do aktualizacji
         if (loggedInUser && loggedInUser.name === 'Topciu' && newPassword) {
@@ -350,6 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('editUserId').value = user.id;
         document.getElementById('editStartBalance').value = user.startBalance;
         document.getElementById('editColor').value = user.color;
+        document.getElementById('editCommission').value = user.commission;
 
         // Pokaż/ukryj pole hasła w zależności od zalogowanego użytkownika
         editPasswordInput.value = ''; // Zawsze czyść pole hasła przy otwieraniu modala
@@ -658,7 +660,8 @@ document.addEventListener('DOMContentLoaded', () => {
         existingUsersList.innerHTML = '';
         allUsersForPermissions.forEach(user => {
             const permissions = user.permissions || [];
-            if (!permissions.includes(APLIKACJA_ID)) {
+            // Wyklucz użytkownika "Topciu" z listy
+            if (user.name !== 'Topciu' && !permissions.includes(APLIKACJA_ID)) {
                 const option = document.createElement('option');
                 option.value = user.id;
                 option.textContent = user.name;

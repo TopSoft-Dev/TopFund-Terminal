@@ -1050,8 +1050,6 @@ body.dark-mode .details-content {
      * Ujednolicamy rozmiar i podmieniamy ikonę na strzałkę.
      */
     #topciuLogoutBtn {
-        width: 32px;   /* Taki sam rozmiar jak .add-btn */
-        height: 32px;  /* Taki sam rozmiar jak .add-btn */
         font-size: 0;  /* Ukrywamy oryginalny symbol ⏻ */
     }
 

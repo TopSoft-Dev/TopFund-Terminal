@@ -125,14 +125,27 @@
     <div id="addUserModal" class="modal">
         <div class="modal-content">
             <span class="close-button" id="closeAddModalBtn">&times;</span>
-            <h2>Dodaj Nowego Użytkownika</h2>
+            <h2>Zarządzaj użytkownikami</h2>
             <form id="add-user-form">
-                <input type="text" id="user-name" placeholder="Nazwa użytkownika" required>
-                <input type="password" id="user-password" placeholder="Hasło" required>
-                <input type="color" id="user-color" value="#ff0000" title="Wybierz kolor użytkownika">
-                <input type="number" id="user-balance" placeholder="Saldo początkowe (USD)" step="0.01" required>
-                <input type="number" id="user-commission" placeholder="Prowizja (%)" step="0.1" required>
-                <button type="submit">Dodaj</button>
+                <div class="form-group">
+                    <label for="action-type">Wybierz akcję:</label>
+                    <select id="action-type">
+                        <option value="create">Stwórz nowego użytkownika</option>
+                        <option value="grant">Nadaj uprawnienia</option>
+                    </select>
+                </div>
+                <div id="create-user-fields">
+                    <input type="text" id="user-name" placeholder="Nazwa użytkownika" required>
+                    <input type="password" id="user-password" placeholder="Hasło" required>
+                    <input type="color" id="user-color" value="#ff0000" title="Wybierz kolor użytkownika">
+                    <input type="number" id="user-balance" placeholder="Saldo początkowe (USD)" step="0.01" required>
+                    <input type="number" id="user-commission" placeholder="Prowizja (%)" step="0.1" required>
+                </div>
+                <div id="grant-permission-fields" style="display: none;">
+                    <label for="existing-users-list">Wybierz użytkownika:</label>
+                    <select id="existing-users-list"></select>
+                </div>
+                <button type="submit">Wykonaj</button>
             </form>
         </div>
     </div>
@@ -162,6 +175,19 @@
                 </div>
                 <button type="submit">Zapisz zmiany</button>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal do ZARZĄDZANIA USUWANIEM użytkownika -->
+    <div id="deleteUserModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeDeleteUserModalBtn">&times;</span>
+            <h2>Zarządzaj użytkownikiem</h2>
+            <p>Co chcesz zrobić z użytkownikiem <strong id="deleteUserName"></strong>?</p>
+            <div class="modal-buttons">
+                <button id="revokePermissionsBtn">Odbierz uprawnienia</button>
+                <button id="deleteUserPermanentlyBtn" class="danger-btn">Usuń na stałe</button>
+            </div>
         </div>
     </div>
 

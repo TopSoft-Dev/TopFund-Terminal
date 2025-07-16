@@ -1024,17 +1024,26 @@ body.dark-mode .details-content {
      * - Saldo w nowej linii poniżej.
      */
     .transaction-detail-row {
-        display: flex;
-        flex-wrap: wrap;
+        display: grid; /* Używamy siatki */
+        grid-template-columns: 1fr auto; /* Dwie kolumny: pierwsza elastyczna, druga dopasowana do treści */
+        grid-template-rows: auto auto; /* Dwa wiersze */
         align-items: center;
-        gap: 0 8px; /* Odstęp poziomy między elementami w linii */
+        gap: 4px 8px; /* Odstępy między wierszami i kolumnami */
+    }
+
+    .transaction-detail-row .detail-name {
+        grid-column: 1 / 2; /* Nazwa w pierwszej kolumnie, pierwszym wierszu */
+        grid-row: 1 / 2;
     }
 
     .transaction-detail-row .detail-new-balance {
-        width: 100%; /* Saldo zajmuje całą szerokość, przechodząc do nowej linii */
-        margin-top: 4px; /* Mały odstęp od góry */
-        text-align: left !important;
+        grid-column: 1 / -1; /* Saldo rozciągnięte na obie kolumny, w drugim wierszu */
+        grid-row: 2 / 3;
+        text-align: left !important; /* Wyrównanie do lewej */
+        margin-top: 0; /* Reset marginesu */
     }
+
+    /* Zysk/strata i prowizja pozostają w naturalnym przepływie, czyli w drugiej kolumnie, pierwszym wierszu */
 
     /*
      * Poprawka dla przycisku wylogowania Topcia (v2).
@@ -1073,5 +1082,70 @@ body.dark-mode .details-content {
         width: auto !important;
         justify-content: flex-end !important;
         flex-shrink: 0 !important;
+    }
+}
+
+/* Styl dla przycisków w modalach */
+.modal-buttons {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 20px;
+}
+
+.modal-buttons button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+}
+
+.danger-btn {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.danger-btn:hover {
+    background-color: #c0392b;
+}
+
+/* Responsywność dla modali */
+@media (max-width: 600px) {
+    .modal-content {
+        width: 90%;
+        padding: 20px; /* Zwiększony padding dla lepszego wyglądu */
+    }
+
+    .modal-buttons {
+        flex-direction: column;
+        gap: 10px; /* Dodany odstęp między przyciskami */
+    }
+
+    .modal-buttons button {
+        margin-bottom: 0; /* Usunięty margines, bo mamy `gap` */
+        width: 100%; /* Przyciski na całą szerokość */
+    }
+
+    /* Zapewnienie, że formularze w modalach nie będą się rozlewać */
+    .modal-content form {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .modal-content form div {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .modal-content form label {
+        margin-bottom: 0;
+    }
+
+    .modal-content form input,
+    .modal-content form select {
+        width: 100%;
+        box-sizing: border-box; /* Ważne dla poprawnego obliczania szerokości */
     }
 }

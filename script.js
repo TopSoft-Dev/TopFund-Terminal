@@ -72,11 +72,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const topciuLogoutBtn = document.getElementById('topciuLogoutBtn');
     const themeToggle = document.getElementById('theme-toggle');
 
+    const actionTypeSelect = document.getElementById('action-type');
+    const createUserFields = document.getElementById('create-user-fields');
+    const grantPermissionFields = document.getElementById('grant-permission-fields');
+    const existingUsersList = document.getElementById('existing-users-list');
+
     // --- Pamięć podręczna i stan aplikacji ---
     let cachedUsers = [];
+    let allUsersForPermissions = []; // Nowa zmienna do przechowywania wszystkich użytkowników
     let cachedTransactions = [];
     let isArchiveView = false;
     let loggedInUser = null; // Przechowuje dane zalogowanego użytkownika
+    const deleteUserModal = document.getElementById('deleteUserModal');
+    const closeDeleteUserModalBtn = document.getElementById('closeDeleteUserModalBtn');
+    const deleteUserName = document.getElementById('deleteUserName');
+    const revokePermissionsBtn = document.getElementById('revokePermissionsBtn');
+    const deleteUserPermanentlyBtn = document.getElementById('deleteUserPermanentlyBtn');
+
+    let userIdToDelete = null;
+    let userNameToDelete = null;
 
     // Ukryj główną aplikację na początku
     mainAppElements.forEach(el => el.style.display = 'none');
@@ -164,6 +178,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- GŁÓWNA LOGIKA APLIKACJI ---
+
+    actionTypeSelect.addEventListener('change', () => {
+        const isCreating = actionTypeSelect.value === 'create';
+        createUserFields.style.display = isCreating ? 'block' : 'none';
+        grantPermissionFields.style.display = isCreating ? 'none' : 'block';
+
+        // Dynamically set 'required' attribute to prevent validation on hidden fields
+        document.getElementById('user-name').required = isCreating;
+        document.getElementById('user-password').required = isCreating;
+        document.getElementById('user-balance').required = isCreating;
+        document.getElementById('user-commission').required = isCreating;
+
+        if (!isCreating) {
+            populateAllUsersForPermissions(); // Populate list only when needed
+        }
+    });
 
     async function initializeTerminalUsers() {
         console.log("Aktywacja przez Topciu: Sprawdzanie konfiguracji użytkowników terminala...");
@@ -326,6 +356,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         editUserModal.style.display = 'block';
+    }
+
+    function openDeleteModal(userId, userName) {
+        userIdToDelete = userId;
+        userNameToDelete = userName;
+        deleteUserName.textContent = userName;
+        deleteUserModal.style.display = 'block';
     }
 
     async function deleteUser(userId, userName) {
@@ -610,41 +647,95 @@ document.addEventListener('DOMContentLoaded', () => {
 
     
 
+    function populateAllUsersForPermissions() {
+        existingUsersList.innerHTML = '';
+        allUsersForPermissions.forEach(user => {
+            const permissions = user.permissions || [];
+            if (!permissions.includes(APLIKACJA_ID)) {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = user.name;
+                existingUsersList.appendChild(option);
+            }
+        });
+    }
+
     addUserForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!loggedInUser || loggedInUser.name !== 'Topciu') {
-            alert('Tylko Topciu może dodawać nowych użytkowników.');
+            alert('Tylko Topciu może wykonywać te operacje.');
             return;
         }
 
-        const userName = document.getElementById('user-name').value;
-        const password = document.getElementById('user-password').value; // Pobierz hasło
-        const userColor = document.getElementById('user-color').value;
-        const startBalance = parseFloat(document.getElementById('user-balance').value);
-        const commission = parseFloat(document.getElementById('user-commission').value);
+        const action = actionTypeSelect.value;
 
-        if (userName && password && !isNaN(startBalance) && !isNaN(commission)) {
-            try {
-                const hashedPassword = await hashPassword(password); // Haszuj hasło
-                await addDoc(collection(db, "users"), {
-                    name: userName,
-                    hashedPassword: hashedPassword, // Zapisz zahaszowane hasło
-                    color: userColor,
-                    startBalance: startBalance,
-                    currentBalance: startBalance,
-                    commission: commission,
-                    createdAt: new Date(),
-                    permissions: ["topfund-terminal"]
-                });
-                addUserForm.reset();
-                addUserModal.style.display = 'none';
-                alert(`Użytkownik ${userName} został pomyślnie dodany.`);
-            } catch (error) {
-                console.error("Błąd podczas dodawania użytkownika: ", error);
-                alert("Wystąpił błąd podczas dodawania użytkownika.");
+        if (action === 'create') {
+            const userName = document.getElementById('user-name').value;
+            const password = document.getElementById('user-password').value;
+            const userColor = document.getElementById('user-color').value;
+            const startBalance = parseFloat(document.getElementById('user-balance').value);
+            const commission = parseFloat(document.getElementById('user-commission').value);
+
+            if (userName && password && !isNaN(startBalance) && !isNaN(commission)) {
+                try {
+                    const hashedPassword = await hashPassword(password);
+                    await addDoc(collection(db, "users"), {
+                        name: userName,
+                        hashedPassword: hashedPassword,
+                        color: userColor,
+                        startBalance: startBalance,
+                        currentBalance: startBalance,
+                        commission: commission,
+                        createdAt: new Date(),
+                        permissions: ["topfund-terminal"]
+                    });
+                    addUserForm.reset();
+                    addUserModal.style.display = 'none';
+                    alert(`Użytkownik ${userName} został pomyślnie dodany.`);
+                } catch (error) {
+                    console.error("Błąd podczas dodawania użytkownika: ", error);
+                    alert("Wystąpił błąd podczas dodawania użytkownika.");
+                }
+            } else {
+                alert('Proszę wypełnić wszystkie pola poprawnymi danymi.');
             }
-        } else {
-            alert('Proszę wypełnić wszystkie pola poprawnymi danymi.');
+        } else if (action === 'grant') {
+            const userId = existingUsersList.value;
+            if (userId) {
+                try {
+                    const userToUpdate = allUsersForPermissions.find(u => u.id === userId);
+                    if (!userToUpdate) {
+                        alert("Nie znaleziono użytkownika. Odśwież stronę i spróbuj ponownie.");
+                        return;
+                    }
+                    const userRef = doc(db, "users", userId);
+                    const updateData = {
+                        permissions: [...(userToUpdate.permissions || []), APLIKACJA_ID]
+                    };
+
+                    // Add default fields if they don't exist to ensure consistency
+                    if (userToUpdate.commission === undefined) {
+                        updateData.commission = 30; // Default commission
+                    }
+                    if (userToUpdate.color === undefined) {
+                        updateData.color = "#ff0000"; // Default color
+                    }
+                    if (userToUpdate.startBalance === undefined) {
+                        updateData.startBalance = 0;
+                    }
+                    if (userToUpdate.currentBalance === undefined) {
+                        updateData.currentBalance = 0;
+                    }
+
+                    await updateDoc(userRef, updateData);
+                    addUserModal.style.display = 'none';
+                } catch (error) {
+                    console.error("Błąd podczas nadawania uprawnień: ", error);
+                    alert("Wystąpił błąd podczas nadawania uprawnień.");
+                }
+            } else {
+                alert('Proszę wybrać użytkownika.');
+            }
         }
     });
 
@@ -684,7 +775,36 @@ document.addEventListener('DOMContentLoaded', () => {
             if (user) openEditModal(user);
         }
         if (deleteButton) {
-            deleteUser(deleteButton.dataset.userId, deleteButton.dataset.userName);
+            openDeleteModal(deleteButton.dataset.userId, deleteButton.dataset.userName);
+        }
+    });
+
+    closeDeleteUserModalBtn.addEventListener('click', () => deleteUserModal.style.display = 'none');
+
+    revokePermissionsBtn.addEventListener('click', async () => {
+        if (userIdToDelete) {
+            try {
+                const userRef = doc(db, "users", userIdToDelete);
+                await updateDoc(userRef, { permissions: [] });
+                deleteUserModal.style.display = 'none';
+            } catch (error) {
+                console.error("Błąd podczas odbierania uprawnień: ", error);
+                alert("Wystąpił błąd podczas odbierania uprawnień.");
+            }
+        }
+    });
+
+    deleteUserPermanentlyBtn.addEventListener('click', async () => {
+        if (userIdToDelete) {
+            try {
+                await deleteDoc(doc(db, "users", userIdToDelete));
+                await recalculateAllBalances();
+                alert(`Użytkownik ${userNameToDelete} został trwale usunięty.`);
+                deleteUserModal.style.display = 'none';
+            } catch (error) {
+                console.error("Błąd podczas usuwania użytkownika: ", error);
+                alert("Wystąpił błąd podczas usuwania użytkownika.");
+            }
         }
     });
 
@@ -716,6 +836,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- GŁÓWNE NASŁUCHIWANIE NA ZMIANY W BAZIE ---
     onSnapshot(query(collection(db, "users"), orderBy("createdAt")), (snapshot) => {
         const allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        allUsersForPermissions = allUsers; // Keep a reference to all users
         
         // Filtruj użytkowników, aby uwzględnić tylko tych z uprawnieniem 'topfund-terminal' lub użytkownika 'Topciu'
         cachedUsers = allUsers.filter(user => {

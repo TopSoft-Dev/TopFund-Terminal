@@ -55,6 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const transactionTypeSelect = document.getElementById('transaction-type');
     const transactionUserSelect = document.getElementById('transaction-user');
     const transactionAmountInput = document.getElementById('transaction-amount');
+    const transactionModeContainer = document.getElementById('transaction-mode-container');
+    const transactionModeSelect = document.getElementById('transaction-mode');
     const usersList = document.getElementById('users-list');
     const userSummaryCards = document.getElementById('user-summary-cards');
     const totalBalanceElement = document.getElementById('total-balance');
@@ -184,6 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     displayUserSummaryCards(cachedUsers, loggedInUser);
                     displayTransactions(cachedTransactions, loggedInUser);
+                    updateTransactionFormUI(); // << NOWOŚĆ: Aktualizuj UI formularza po zalogowaniu
                 } else {
                     loginErrorElement.textContent = 'Brak uprawnień do tej aplikacji.';
                 }
@@ -208,6 +211,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- GŁÓWNA LOGIKA APLIKACJI ---
+
+    function updateTransactionFormUI() {
+        const isTrade = transactionTypeSelect.value === 'trade';
+        const isTopciu = loggedInUser && loggedInUser.name === 'Topciu';
+
+        transactionUserSelect.style.display = isTrade ? 'none' : 'block';
+        transactionModeContainer.style.display = isTrade && isTopciu ? 'block' : 'none';
+    }
 
     actionTypeSelect.addEventListener('change', () => {
         const isCreating = actionTypeSelect.value === 'create';
@@ -480,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
         transactionUserSelect.value = selectedValue;
     }
 
-    async function processTransaction(type, userId, amount) {
+    async function processTransaction(type, userId, amount, mode) { // Dodano 'mode'
         const usersSnapshot = await getDocs(collection(db, "users"));
         const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
@@ -506,10 +517,17 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (type === 'trade') {
             if (!topciuUser) throw new Error('Brak aktywnego użytkownika "Topciu" z wymaganymi uprawnieniami.');
 
-            // Użyj przefiltrowanej listy `activeUsers` do obliczeń
             const oldTotalBalance = activeUsers.reduce((sum, u) => sum + u.currentBalance, 0);
-            const newTotalBalance = amount;
-            const profitLoss = newTotalBalance - oldTotalBalance;
+            let newTotalBalance;
+            let profitLoss;
+
+            if (mode === 'saldo') {
+                newTotalBalance = amount;
+                profitLoss = newTotalBalance - oldTotalBalance;
+            } else { // mode === 'kwota'
+                profitLoss = amount;
+                newTotalBalance = oldTotalBalance + profitLoss;
+            }
 
             if (oldTotalBalance <= 0) throw new Error('Całkowite saldo początkowe aktywnych użytkowników jest zerowe lub ujemne.');
 
@@ -998,26 +1016,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     editUserForm.addEventListener('submit', handleEditUserSubmit);
 
-    transactionTypeSelect.addEventListener('change', () => {
-        transactionUserSelect.style.display = transactionTypeSelect.value === 'trade' ? 'none' : 'block';
-    });
+    transactionTypeSelect.addEventListener('change', updateTransactionFormUI);
 
     addTransactionForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const type = transactionTypeSelect.value;
         const userId = transactionUserSelect.value;
         const amount = parseFloat(transactionAmountInput.value);
-        if (isNaN(amount) || amount < 0) {
+        const mode = transactionModeSelect.value; // Pobierz tryb
+
+        if (isNaN(amount)) { // Zmieniono warunek, aby zezwolić na kwoty ujemne
             alert('Proszę podać prawidłową kwotę transakcji.'); return;
         }
         if ((type === 'deposit' || type === 'withdrawal') && !userId) {
             alert('Proszę wybrać użytkownika dla wpłaty/wypłaty.'); return;
         }
         try {
-            await processTransaction(type, userId, amount);
+            await processTransaction(type, userId, amount, mode); // Przekaż tryb do funkcji
             addTransactionForm.reset();
-            transactionUserSelect.style.display = 'none';
-            transactionTypeSelect.value = 'trade';
+            updateTransactionFormUI(); // << NOWOŚĆ: Zresetuj UI formularza
         } catch (error) {
             console.error("Błąd podczas przetwarzania transakcji: ", error);
             alert(`Wystąpił błąd: ${error.message}`);

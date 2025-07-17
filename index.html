@@ -98,6 +98,13 @@
                 <select id="transaction-user" style="display: none;">
                     <option value="">Wybierz użytkownika (dla wpłaty/wypłaty)</option>
                 </select>
+                <div id="transaction-mode-container" style="display: none;">
+                    <label for="transaction-mode" style="font-size: 0.9em; color: var(--text-color);">Tryb wprowadzania kwoty:</label>
+                    <select id="transaction-mode">
+                       <option value="kwota">Zysk/Strata</option>
+                       <option value="saldo">Nowe saldo</option>
+                    </select>
+                </div>
                 <input type="number" id="transaction-amount" placeholder="Kwota (USD)" step="0.01" required>
                 <button type="submit">Dodaj transakcję</button>
             </form>

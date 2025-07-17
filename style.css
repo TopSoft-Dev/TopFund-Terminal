@@ -1222,7 +1222,7 @@ body.dark-mode .details-content {
     
     #monthly-profits-chart {
         width: 100%;
-        height: 100px;
+        height: auto;
     }
 }
 

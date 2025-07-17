@@ -1267,6 +1267,12 @@ window.addTestTransaction = async function() {
         const chartElement = document.getElementById('monthly-profits-chart');
         if (!chartElement) return;
 
+        // --- NOWOŚĆ: Dynamiczne dopasowanie rozmiaru canvasu ---
+        const containerWidth = chartElement.parentElement.clientWidth;
+        chartElement.width = containerWidth;
+        chartElement.height = containerWidth / 2;
+        // ----------------------------------------------------
+
         const ctx = chartElement.getContext('2d');
         const now = new Date();
         const monthsData = [];

@@ -227,32 +227,60 @@
     <div id="detailedStatsModal" class="modal">
         <div class="modal-content">
             <span class="close-button" id="closeDetailedStatsModalBtn">&times;</span>
-            <h2>Szczegółowe statystyki</h2>
+            <div class="modal-header">
+                <h2>Szczegółowe statystyki</h2>
+                <button class="circle-btn share-btn" id="shareStatsBtn" title="Udostępnij statystyki">📋</button>
+            </div>
             <div id="detailedStatsContent">
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <span class="stat-label">Miesięczny zysk:</span>
-                        <span class="stat-value" id="monthlyProfit">0.00 USD</span>
+                <!-- Sekcja: BIEŻĄCY MIESIĄC -->
+                <div class="stats-section">
+                    <h3>Bieżący miesiąc</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Miesięczny zysk:</span>
+                            <span class="stat-value" id="monthlyProfit">0.00 USD</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Miesięczna zmiana:</span>
+                            <span class="stat-label" id="monthlyChange">0.0%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Transakcje Zyskowne/Stratne:</span>
+                            <span class="stat-value" id="monthlyProfitableLossTrades">0/0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Skuteczność miesięczna:</span>
+                            <span class="stat-value" id="monthlySuccessRate">0.0%</span>
+                        </div>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Miesięczna zmiana:</span>
-                        <span class="stat-value" id="monthlyChange">0.0%</span>
+                </div>
+                
+                <!-- Separator -->
+                <div class="stats-separator"></div>
+                
+                <!-- Sekcja: CAŁKOWITE STATYSTYKI -->
+                <div class="stats-section">
+                    <div class="modal-header">
+                        <h3>Całkowite statystyki</h3>
+                        <button class="circle-btn share-btn" id="shareTotalStatsBtn" title="Udostępnij całkowite statystyki">📋</button>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Ilość transakcji:</span>
-                        <span class="stat-value" id="totalTrades">0</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Transakcje zyskowne:</span>
-                        <span class="stat-value" id="profitableTrades">0</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Transakcje stratne:</span>
-                        <span class="stat-value" id="lossTrades">0</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Skuteczność:</span>
-                        <span class="stat-value" id="successRate">0.0%</span>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Całkowity zysk:</span>
+                            <span class="stat-value" id="totalProfit">0.00 USD</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Całkowita zmiana:</span>
+                            <span class="stat-value" id="totalChange">0.0%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Transakcje Zyskowne/Stratne:</span>
+                            <span class="stat-value" id="profitableTrades">0/0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Skuteczność:</span>
+                            <span class="stat-value" id="successRate">0.0%</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -266,6 +294,41 @@
             <h2>Miesięczne zyski - szczegółowy wykres</h2>
             <div id="enlarged-chart-container">
                 <canvas id="enlarged-monthly-profits-chart" width="800" height="400"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal do UDOSTĘPNIANIA WYNIKÓW -->
+    <div id="shareResultModal" class="modal">
+        <div class="modal-content share-modal">
+            <span class="close-button" id="closeShareResultModalBtn">&times;</span>
+            <h2>Udostępnij wynik</h2>
+            <div id="shareCardContainer">
+                <div id="shareCard" class="share-card">
+                    <div class="share-card-header">
+                        <div class="share-user-info">
+                            <span class="share-username" id="shareUsername">Użytkownik</span>
+                            <span class="share-date" id="shareDate">Data</span>
+                        </div>
+                        <div class="share-icon" id="shareIcon">🚀</div>
+                    </div>
+                    <div class="share-card-content">
+                        <div class="share-result">
+                            <span class="share-percentage" id="sharePercentage">+0.0%</span>
+                            <div class="share-pnl-container">
+                                <span class="share-pnl" id="sharePnl">PnL: +0.00 USD</span>
+                                <span class="share-transactions" id="shareTransactions">Transakcje: 0 | Skuteczność: 0%</span>
+                            </div>
+                        </div>
+                        <div class="share-message" id="shareMessage">Świetne zagranie! 💪</div>
+                    </div>
+                </div>
+            </div>
+            <div class="share-options">
+                <label class="share-option">
+                    <input type="checkbox" id="hideAmountCheckbox">
+                    <span>Ukryj kwotę</span>
+                </label>
             </div>
         </div>
     </div>

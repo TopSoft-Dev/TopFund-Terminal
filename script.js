@@ -97,6 +97,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeEnlargedChartModalBtn = document.getElementById('closeEnlargedChartModalBtn');
     const enlargedChartContainer = document.getElementById('enlarged-chart-container');
 
+    // Elementy modala udostępniania
+    const shareResultModal = document.getElementById('shareResultModal');
+    const closeShareResultModalBtn = document.getElementById('closeShareResultModalBtn');
+    const shareUsername = document.getElementById('shareUsername');
+    const shareDate = document.getElementById('shareDate');
+    const shareIcon = document.getElementById('shareIcon');
+    const sharePercentage = document.getElementById('sharePercentage');
+    const shareAmount = document.getElementById('shareAmount');
+    const shareMessage = document.getElementById('shareMessage');
+    const hideAmountCheckbox = document.getElementById('hideAmountCheckbox');
+
     // Funkcje do zarządzania scrollowaniem
     function disableBodyScroll() {
         document.body.classList.add('modal-open');
@@ -569,13 +580,38 @@ document.addEventListener('DOMContentLoaded', () => {
     function displayTransactions(transactions, currentUser) {
         if (!transactionsHistoryBody) return;
     
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+        // Poprawiona logika obliczania daty miesiąc temu
+        const now = new Date();
+        const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+        
+        // Oblicz początek bieżącego miesiąca dla lepszego filtrowania
+        const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     
         let timeFilteredTransactions = transactions.filter(transaction => {
             const transactionDate = transaction.createdAt.toDate();
-            return isArchiveView ? transactionDate < oneMonthAgo : transactionDate >= oneMonthAgo;
+            if (isArchiveView) {
+                // Archiwum: transakcje z poprzednich miesięcy (przed początkiem bieżącego miesiąca)
+                return transactionDate < currentMonthStart;
+            } else {
+                // Aktualne: transakcje z bieżącego miesiąca (od początku bieżącego miesiąca)
+                return transactionDate >= currentMonthStart;
+            }
         });
+
+        // Debug: Loguj informacje o filtrowaniu (tylko w trybie deweloperskim)
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.log(`Filtrowanie transakcji:`, {
+                isArchiveView,
+                currentMonthStart: currentMonthStart.toISOString(),
+                totalTransactions: transactions.length,
+                filteredTransactions: timeFilteredTransactions.length,
+                sampleDates: transactions.slice(0, 3).map(t => ({
+                    date: t.createdAt.toDate().toISOString(),
+                    type: t.type,
+                    isInArchive: t.createdAt.toDate() < currentMonthStart
+                }))
+            });
+        }
     
         // Nowa logika filtrowania dla użytkowników innych niż "Topciu"
         let finalFilteredTransactions;
@@ -639,10 +675,10 @@ document.addEventListener('DOMContentLoaded', () => {
             row.innerHTML = `
                 <td>${new Date(transaction.createdAt.toDate()).toLocaleString()}</td><td>${transaction.type}</td><td>${descriptionText}</td>
                 <td>${amountText}</td><td>${balanceAfterText}</td>
-                <td class="action-buttons">
-                    ${transaction.type === 'trade' ? `<button class="circle-btn details-toggle-btn" data-transaction-id="${transaction.id}" title="Pokaż szczegóły">+</button>` : ''}
-                    ${loggedInUser && loggedInUser.name === 'Topciu' ? `<button class="circle-btn delete-btn delete-transaction-btn" title="Usuń transakcję" data-transaction-id="${transaction.id}">&times;</button>` : ''}
-                </td>`;
+                                        <td class="action-buttons">
+                            ${transaction.type === 'trade' ? `<button class="circle-btn details-toggle-btn" data-transaction-id="${transaction.id}" title="Pokaż szczegóły">+</button>` : ''}
+                            ${loggedInUser && loggedInUser.name === 'Topciu' ? `<button class="circle-btn delete-btn delete-transaction-btn" title="Usuń transakcję" data-transaction-id="${transaction.id}">&times;</button>` : ''}
+                        </td>`;
             transactionsHistoryBody.appendChild(row);
             if (transaction.type === 'trade' && transaction.details) {
                 let detailsHtml = '';
@@ -720,6 +756,171 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentUser && currentUser.name !== 'Topciu') {
             calculateDetailedStats(transactions, currentUser);
         }
+
+        // --- ARCHIWUM: grupowanie po miesiącach z rozwijaniem ---
+        if (isArchiveView) {
+            transactionsHistoryBody.innerHTML = '';
+            // Grupuj transakcje według miesięcy
+            const monthlyGroups = {};
+            finalFilteredTransactions.forEach(transaction => {
+                const transactionDate = transaction.createdAt.toDate();
+                const monthKey = `${transactionDate.getFullYear()}-${String(transactionDate.getMonth() + 1).padStart(2, '0')}`;
+                const monthLabel = transactionDate.toLocaleDateString('pl-PL', { month: '2-digit', year: 'numeric' });
+                if (!monthlyGroups[monthKey]) {
+                    monthlyGroups[monthKey] = {
+                        label: monthLabel,
+                        transactions: []
+                    };
+                }
+                monthlyGroups[monthKey].transactions.push(transaction);
+            });
+            // Sortuj miesiące od najnowszego do najstarszego
+            const sortedMonths = Object.keys(monthlyGroups).sort().reverse();
+            // Wyświetl nagłówki miesięcy i ukryte transakcje
+            sortedMonths.forEach(monthKey => {
+                const monthData = monthlyGroups[monthKey];
+                // Dodaj nagłówek miesiąca z przyciskiem +
+                const monthHeader = document.createElement('tr');
+                monthHeader.className = 'month-header';
+                monthHeader.innerHTML = `
+                    <td colspan="6" class="month-header-cell">
+                        <div class="month-header-content">
+                            <button class="toggle-month-btn" data-month="${monthKey}">+</button>
+                            <span class="month-label">${monthData.label}</span>
+                            <span class="month-transaction-count">(${monthData.transactions.length} transakcji)</span>
+                        </div>
+                    </td>
+                `;
+                transactionsHistoryBody.appendChild(monthHeader);
+                // Dodaj transakcje z tego miesiąca (domyślnie ukryte)
+                monthData.transactions.forEach(transaction => {
+                    const row = document.createElement('tr');
+                    row.className = `month-trans-row month-trans-${monthKey}`;
+                    row.style.display = 'none';
+                    let descriptionText = "";
+                    let amountText = '';
+                    let balanceAfterText = '';
+                    if (transaction.type === 'deposit' || transaction.type === 'withdrawal') {
+                        descriptionText = `${transaction.userName}`;
+                        amountText = `<span>${transaction.type === 'deposit' ? '+' : '-'}${transaction.amount.toFixed(2)}</span>&nbsp;USD`;
+                        balanceAfterText = `<span>${transaction.balanceAfter.toFixed(2)}</span>&nbsp;USD`;
+                    } else if (transaction.type === 'trade') {
+                        let displayAmount = transaction.amount;
+                        if (currentUser && currentUser.name !== 'Topciu' && transaction.details) {
+                            const userDetail = Object.values(transaction.details).find(detail => detail.name === currentUser.name);
+                            if (userDetail) {
+                                displayAmount = userDetail.profitLossShare - (userDetail.commissionPaid || 0);
+                            }
+                        }
+                        const tradeAmountClass = displayAmount > 0 ? 'positive-amount' : 'negative-amount';
+                        amountText = `<span class="${tradeAmountClass}">${displayAmount > 0 ? '+' : ''}${displayAmount.toFixed(2)}</span>&nbsp;USD (Zysk/Strata)`;
+                        descriptionText = `Zagranie`;
+                        if (transaction.totalBalanceAfter !== undefined) {
+                            if (currentUser && currentUser.name !== 'Topciu' && transaction.details) {
+                                const userDetail = Object.values(transaction.details).find(detail => detail.name === currentUser.name);
+                                if (userDetail) {
+                                    balanceAfterText = `<span>${userDetail.newBalance.toFixed(2)}</span>&nbsp;USD`;
+                                } else {
+                                    balanceAfterText = '-'; // Fallback if user detail not found
+                                }
+                            } else {
+                                balanceAfterText = `<span>${transaction.totalBalanceAfter.toFixed(2)}</span>&nbsp;USD`;
+                            }
+                        } else {
+                            balanceAfterText = '-';
+                        }
+                    }
+                    row.innerHTML = `
+                        <td>${new Date(transaction.createdAt.toDate()).toLocaleString()}</td><td>${transaction.type}</td><td>${descriptionText}</td>
+                        <td>${amountText}</td><td>${balanceAfterText}</td>
+                        <td class="action-buttons">
+                            ${transaction.type === 'trade' ? `<button class="circle-btn details-toggle-btn" data-transaction-id="${transaction.id}" title="Pokaż szczegóły">+</button>` : ''}
+                            ${loggedInUser && loggedInUser.name === 'Topciu' ? `<button class="circle-btn delete-btn delete-transaction-btn" title="Usuń transakcję" data-transaction-id="${transaction.id}">&times;</button>` : ''}
+                        </td>`;
+                    transactionsHistoryBody.appendChild(row);
+                    // Dodaj szczegóły transakcji jeśli to trade
+                    if (transaction.type === 'trade' && transaction.details) {
+                        let detailsHtml = '';
+                        for (const userId in transaction.details) {
+                            const detail = transaction.details[userId];
+                            // Only show details if loggedInUser is Topciu or if the detail belongs to the the loggedInUser
+                            if (currentUser && (currentUser.name === 'Topciu' || detail.name === currentUser.name)) {
+                                if (currentUser.name === 'Topciu') {
+                                    // Dla Topcia - pokazuj kwoty netto i brutto z prowizjami
+                                    if (detail.name === 'Topciu') {
+                                        // Dla wpisu Topcia
+                                        const netAmount = detail.profitLossShare; // Kwota netto (podstawowy zysk bez prowizji)
+                                        const grossAmount = detail.profitLossShare + (detail.commissionCollected || 0); // Kwota brutto (podstawowy zysk + prowizje)
+                                        const commission = detail.commissionCollected || 0;
+                                        const netClass = netAmount >= 0 ? 'positive-amount' : 'negative-amount';
+                                        const grossClass = grossAmount >= 0 ? 'positive-amount' : 'negative-amount';
+                                        const commissionClass = commission >= 0 ? 'positive-amount' : 'negative-amount';
+                                        detailsHtml += `
+                                            <div class="transaction-detail-row">
+                                                <span class="detail-name">${detail.name}: </span>
+                                                <span class="${netClass}">${netAmount >= 0 ? '+' : ''}${netAmount.toFixed(2)}</span>&nbsp;USD&nbsp;Netto&nbsp;
+                                                (<span class="${grossClass}">${grossAmount >= 0 ? '+' : ''}${grossAmount.toFixed(2)}</span>&nbsp;USD&nbsp;Brutto,&nbsp;Prowizje:&nbsp;<span class="${commissionClass}">${commission >= 0 ? '+' : ''}${commission.toFixed(2)}</span>&nbsp;USD)
+                                                <span class="detail-new-balance">Saldo:&nbsp;<span class="${detail.newBalance >= 0 ? 'positive-amount' : 'negative-amount'}">${detail.newBalance.toFixed(2)}</span>&nbsp;USD</span>
+                                            </div>`;
+                                    } else {
+                                        // Dla innych użytkowników widzianych przez Topcia
+                                        const netAmount = detail.profitLossShare - (detail.commissionPaid || 0); // Kwota netto (po odliczeniu prowizji)
+                                        const grossAmount = detail.profitLossShare; // Kwota brutto (przed prowizją)
+                                        const commission = detail.commissionPaid || 0;
+                                        const netClass = netAmount >= 0 ? 'positive-amount' : 'negative-amount';
+                                        const grossClass = grossAmount >= 0 ? 'positive-amount' : 'negative-amount';
+                                        const commissionClass = commission >= 0 ? 'positive-amount' : 'negative-amount';
+                                        detailsHtml += `
+                                            <div class="transaction-detail-row">
+                                                <span class="detail-name">${detail.name}: </span>
+                                                <span class="${netClass}">${netAmount >= 0 ? '+' : ''}${netAmount.toFixed(2)}</span>&nbsp;USD&nbsp;Netto&nbsp;
+                                                (<span class="${grossClass}">${grossAmount >= 0 ? '+' : ''}${grossAmount.toFixed(2)}</span>&nbsp;USD&nbsp;Brutto,&nbsp;Prowizja:&nbsp;<span class="negative-amount">-${commission.toFixed(2)}</span>&nbsp;USD)
+                                                <span class="detail-new-balance">Saldo:&nbsp;<span class="${detail.newBalance >= 0 ? 'positive-amount' : 'negative-amount'}">${detail.newBalance.toFixed(2)}</span>&nbsp;USD</span>
+                                            </div>`;
+                                    }
+                                } else {
+                                    // Dla innych użytkowników - stary sposób wyświetlania
+                                    const profitLossClass = detail.profitLossShare > 0 ? 'positive-amount' : 'negative-amount';
+                                    let commissionText = '';
+                                    if (detail.commissionPaid && detail.commissionPaid > 0) {
+                                        commissionText = ` (Prowizja:&nbsp;<span class="negative-amount">-${detail.commissionPaid.toFixed(2)}</span>&nbsp;USD)`;
+                                    }
+                                    detailsHtml += `
+                                        <div class="transaction-detail-row">
+                                            <span class="detail-name">${detail.name}: </span>
+                                            <span class="${profitLossClass}">${detail.profitLossShare > 0 ? '+' : ''}${detail.profitLossShare.toFixed(2)}</span>&nbsp;USD${commissionText}
+                                            <span class="detail-new-balance">Saldo:&nbsp;<span class="${detail.newBalance >= 0 ? 'positive-amount' : 'negative-amount'}">${detail.newBalance.toFixed(2)}</span>&nbsp;USD</span>
+                                        </div>`;
+                                }
+                            }
+                        }
+                        // Dodaj wiersz szczegółów tylko jeśli detailsHtml nie jest pusty
+                        if (detailsHtml) {
+                            const detailsRow = document.createElement('tr');
+                            detailsRow.className = 'transaction-details-container';
+                            detailsRow.id = `details-${transaction.id}`;
+                            detailsRow.style.display = 'none';
+                            detailsRow.innerHTML = `<td colspan="6"><div class="details-content">${detailsHtml}</div></td>`;
+                            transactionsHistoryBody.appendChild(detailsRow);
+                        }
+                    }
+                });
+            });
+            // Obsługa kliknięć na przyciski rozwijania miesięcy
+            transactionsHistoryBody.querySelectorAll('.toggle-month-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const monthKey = this.getAttribute('data-month');
+                    const rows = transactionsHistoryBody.querySelectorAll(`.month-trans-${monthKey}`);
+                    const isOpen = this.textContent === '-';
+                    rows.forEach(row => {
+                        row.style.display = isOpen ? 'none' : '';
+                    });
+                    this.textContent = isOpen ? '+' : '-';
+                });
+            });
+            return; // Nie wyświetlaj już poniżej, archiwum już obsłużone
+        }
+        // --- KONIEC ARCHIWUM ---
     }
 
     function calculateDetailedStats(transactions, currentUser) {
@@ -732,9 +933,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
         let currentMonthProfit = 0;
-        let totalTrades = 0;
-        let profitableTrades = 0;
-        let lossTrades = 0;
+        let monthlyTrades = 0; // Transakcje tylko z bieżącego miesiąca
+        let monthlyProfitableTrades = 0; // Zyskowne z bieżącego miesiąca
+        let monthlyLossTrades = 0; // Stratne z bieżącego miesiąca
+        let totalTrades = 0; // Wszystkie transakcje
+        let profitableTrades = 0; // Wszystkie zyskowne
+        let lossTrades = 0; // Wszystkie stratne
+        let totalProfit = 0; // Całkowity zysk ze wszystkich transakcji
 
         // Oblicz saldo na początku bieżącego miesiąca
         let balanceAtMonthStart = currentUser.startBalance || 0;
@@ -768,7 +973,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Oblicz statystyki z transakcji bieżącego miesiąca
+        // Oblicz statystyki z wszystkich transakcji
         transactions.forEach(transaction => {
             if (transaction.type === 'trade' && transaction.details) {
                 const userDetail = Object.values(transaction.details).find(detail => detail.name === currentUser.name);
@@ -788,11 +993,36 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else if (userProfit < 0) {
                         lossTrades++;
                     }
+                    
+                    // Dodaj do całkowitego zysku
+                    totalProfit += userProfit;
 
-                    // Miesięczne zyski tylko z bieżącego miesiąca
+                    // Miesięczne zyski i liczba transakcji tylko z bieżącego miesiąca
                     if (transactionDate >= currentMonth && transactionDate <= currentMonthEnd) {
                         currentMonthProfit += userProfit;
+                        monthlyTrades++;
+                        
+                        // Licz zyskowne/stratne transakcje dla bieżącego miesiąca
+                        if (userProfit > 0) {
+                            monthlyProfitableTrades++;
+                        } else if (userProfit < 0) {
+                            monthlyLossTrades++;
+                        }
                     }
+                }
+            }
+            
+            // Dodaj wpłaty i wypłaty do całkowitego zysku
+            if ((transaction.type === 'deposit' || transaction.type === 'withdrawal') && transaction.userName === currentUser.name) {
+                const transactionDate = transaction.createdAt.toDate();
+                const depositAmount = transaction.type === 'deposit' ? transaction.amount : -transaction.amount;
+                
+                // Dodaj do całkowitego zysku (wpłaty zwiększają zysk, wypłaty zmniejszają)
+                totalProfit += depositAmount;
+                
+                // Jeśli to transakcja z bieżącego miesiąca, dodaj do miesięcznego zysku
+                if (transactionDate >= currentMonth && transactionDate <= currentMonthEnd) {
+                    currentMonthProfit += depositAmount;
                 }
             }
         });
@@ -805,25 +1035,40 @@ document.addEventListener('DOMContentLoaded', () => {
             monthlyChangePercent = currentMonthProfit > 0 ? 100 : -100;
         }
 
-        // Oblicz skuteczność
+        // Oblicz skuteczność (z wszystkich transakcji)
         const successRate = totalTrades > 0 ? (profitableTrades / totalTrades) * 100 : 0;
+        
+        // Oblicz skuteczność miesięczną
+        const monthlySuccessRate = monthlyTrades > 0 ? (monthlyProfitableTrades / monthlyTrades) * 100 : 0;
+        
+        // Oblicz całkowitą zmianę procentową od salda początkowego
+        // Uwzględnij wpłaty i wypłaty w obliczeniach
+        const totalChangePercent = (currentUser.startBalance || 0) > 0 ? (totalProfit / (currentUser.startBalance || 1)) * 100 : (totalProfit > 0 ? 100 : (totalProfit < 0 ? -100 : 0));
 
         // Aktualizuj elementy DOM
         document.getElementById('monthlyProfit').textContent = `${currentMonthProfit.toFixed(2)} USD`;
         document.getElementById('monthlyChange').textContent = `${monthlyChangePercent.toFixed(1)}%`;
-        document.getElementById('totalTrades').textContent = totalTrades;
-        document.getElementById('profitableTrades').textContent = profitableTrades;
-        document.getElementById('lossTrades').textContent = lossTrades;
+        document.getElementById('monthlyProfitableLossTrades').textContent = `${monthlyProfitableTrades}/${monthlyLossTrades}`;
+        document.getElementById('monthlySuccessRate').textContent = `${monthlySuccessRate.toFixed(1)}%`;
+        document.getElementById('totalProfit').textContent = `${totalProfit.toFixed(2)} USD`;
+        document.getElementById('totalChange').textContent = `${totalChangePercent.toFixed(1)}%`;
+        document.getElementById('profitableTrades').textContent = `${profitableTrades}/${lossTrades}`;
         document.getElementById('successRate').textContent = `${successRate.toFixed(1)}%`;
 
         // Dodaj kolory do wartości
         const monthlyProfitEl = document.getElementById('monthlyProfit');
         const monthlyChangeEl = document.getElementById('monthlyChange');
         const successRateEl = document.getElementById('successRate');
+        const monthlySuccessRateEl = document.getElementById('monthlySuccessRate');
+        const totalProfitEl = document.getElementById('totalProfit');
+        const totalChangeEl = document.getElementById('totalChange');
 
         monthlyProfitEl.className = currentMonthProfit >= 0 ? 'positive-amount' : 'negative-amount';
         monthlyChangeEl.className = monthlyChangePercent >= 0 ? 'positive-amount' : 'negative-amount';
         successRateEl.className = successRate >= 50 ? 'positive-amount' : 'negative-amount';
+        monthlySuccessRateEl.className = monthlySuccessRate >= 50 ? 'positive-amount' : 'negative-amount';
+        totalProfitEl.className = totalProfit >= 0 ? 'positive-amount' : 'negative-amount';
+        totalChangeEl.className = totalChangePercent >= 0 ? 'positive-amount' : 'negative-amount';
     }
 
     // --- OBSŁUGA ZDARZEŃ (EVENT LISTENERS) ---
@@ -869,6 +1114,10 @@ document.addEventListener('DOMContentLoaded', () => {
             enlargedChartModal.style.display = "none";
             enableBodyScroll();
         }
+        if (event.target == shareResultModal) {
+            shareResultModal.style.display = "none";
+            enableBodyScroll();
+        }
     });
 
     // Obsługa modala ze statystykami
@@ -892,6 +1141,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Zmienna globalna do przechowywania aktualnie wybranego użytkownika
+    let currentSelectedUser = null;
+
     // Obsługa kliknięcia na kolorowe karty użytkowników
     userSummaryCards.addEventListener('click', (event) => {
         const userCard = event.target.closest('.user-summary-card');
@@ -900,6 +1152,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const user = cachedUsers.find(u => u.id === userId);
             
             if (user) {
+                // Zapisz aktualnie wybranego użytkownika
+                currentSelectedUser = user;
                 // Oblicz statystyki dla wybranego użytkownika
                 calculateDetailedStats(cachedTransactions, user);
                 detailedStatsModal.style.display = 'flex';
@@ -1170,6 +1424,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+
+
         if (deleteButton) {
             deleteTransaction(deleteButton.dataset.transactionId);
         }
@@ -1233,6 +1489,226 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    // Obsługa modala z większym wykresem
+    closeEnlargedChartModalBtn.addEventListener('click', () => {
+        enlargedChartModal.style.display = 'none';
+        enableBodyScroll();
+    });
+
+    // Obsługa modala udostępniania
+    closeShareResultModalBtn.addEventListener('click', () => {
+        shareResultModal.style.display = 'none';
+        enableBodyScroll();
+    });
+
+    // Obsługa ukrycia kwoty w karcie udostępniania
+    hideAmountCheckbox.addEventListener('change', function() {
+        const sharePnlEl = document.getElementById('sharePnl');
+        if (this.checked) {
+            sharePnlEl.classList.add('hidden');
+        } else {
+            sharePnlEl.classList.remove('hidden');
+        }
+    });
+
+
+
+    // Funkcja do otwierania modala udostępniania
+    function openShareModal(transaction) {
+        if (!loggedInUser) return;
+
+        // Znajdź dane użytkownika z transakcji
+        let userProfit = 0;
+        let userDetail = null;
+        
+        if (transaction.details) {
+            userDetail = Object.values(transaction.details).find(detail => detail.name === loggedInUser.name);
+            if (userDetail) {
+                userProfit = userDetail.profitLossShare - (userDetail.commissionPaid || 0);
+                
+                // Dla Topcia dodaj prowizje zebrane
+                if (loggedInUser.name === 'Topciu' && userDetail.commissionCollected) {
+                    userProfit += userDetail.commissionCollected;
+                }
+            }
+        }
+
+        // Oblicz procent zmiany (przybliżone)
+        const percentageChange = userProfit > 0 ? Math.min(userProfit / 100, 50) : Math.max(userProfit / 100, -50);
+
+        // Ustaw ikonę w zależności od wyniku
+        if (userProfit > 0) {
+            shareIcon.textContent = userProfit > 100 ? '🚀' : '⚡';
+        } else {
+            shareIcon.textContent = '📉';
+        }
+
+        // Ustaw wiadomość w zależności od wyniku
+        let message = '';
+        if (userProfit > 100) {
+            message = 'Rakieta! 🚀';
+        } else if (userProfit > 50) {
+            message = 'Świetne zagranie! 💪';
+        } else if (userProfit > 0) {
+            message = 'Dobra robota! 👍';
+        } else if (userProfit > -50) {
+            message = 'Następnym razem będzie lepiej! 💪';
+        } else {
+            message = 'Uczymy się na błędach! 📚';
+        }
+
+        // Wypełnij dane w karcie
+        shareUsername.textContent = loggedInUser.name;
+        shareDate.textContent = new Date(transaction.createdAt.toDate()).toLocaleDateString('pl-PL');
+        sharePercentage.textContent = `${percentageChange >= 0 ? '+' : ''}${percentageChange.toFixed(1)}%`;
+        
+        // Ustaw PnL z kolorowaniem
+        const sharePnlEl = document.getElementById('sharePnl');
+        sharePnlEl.textContent = `PnL: ${userProfit >= 0 ? '+' : ''}${userProfit.toFixed(2)} USD`;
+        sharePnlEl.className = userProfit >= 0 ? 'share-pnl positive' : 'share-pnl negative';
+        
+        // Ustaw opis transakcji (przykładowe dane dla pojedynczej transakcji)
+        const shareTransactionsEl = document.getElementById('shareTransactions');
+        const isProfitable = userProfit > 0;
+        const transactionCount = 1;
+        const successRate = isProfitable ? 100 : 0;
+        const successRateClass = successRate >= 50 ? '' : 'low';
+        
+        shareTransactionsEl.innerHTML = `Transakcje: <span class="transaction-count">${transactionCount}</span> | Skuteczność: <span class="success-rate ${successRateClass}">${successRate}%</span>`;
+        
+        shareMessage.textContent = message;
+
+        // Zresetuj checkbox
+        hideAmountCheckbox.checked = false;
+        sharePnlEl.classList.remove('hidden');
+    }
+
+    // Funkcja do otwierania modala udostępniania statystyk
+    function openShareStatsModal(type = 'monthly') {
+        if (!loggedInUser || !currentSelectedUser) return;
+
+        // Sprawdź czy elementy istnieją w DOM
+        const monthlyProfitEl = document.getElementById('monthlyProfit');
+        const monthlyChangeEl = document.getElementById('monthlyChange');
+        const monthlyProfitableLossTradesEl = document.getElementById('monthlyProfitableLossTrades');
+        const monthlySuccessRateEl = document.getElementById('monthlySuccessRate');
+        const totalProfitEl = document.getElementById('totalProfit');
+        const totalChangeEl = document.getElementById('totalChange');
+        const profitableTradesEl = document.getElementById('profitableTrades');
+        const successRateEl = document.getElementById('successRate');
+
+        if (!monthlyProfitEl || !monthlyChangeEl || !monthlyProfitableLossTradesEl || !monthlySuccessRateEl || 
+            !totalProfitEl || !totalChangeEl || !profitableTradesEl || !successRateEl) {
+            alert('Najpierw otwórz szczegółowe statystyki użytkownika!');
+            return;
+        }
+
+        // Pobierz dane ze szczegółowych statystyk
+        const monthlyProfit = monthlyProfitEl.textContent;
+        const monthlyChange = monthlyChangeEl.textContent;
+        const monthlyProfitableLossTrades = monthlyProfitableLossTradesEl.textContent;
+        const monthlySuccessRate = monthlySuccessRateEl.textContent;
+        const totalProfit = totalProfitEl.textContent;
+        const totalChange = totalChangeEl.textContent;
+        const profitableTrades = profitableTradesEl.textContent;
+        const totalSuccessRate = successRateEl.textContent;
+
+        // Wybierz dane w zależności od typu statystyk
+        let profitValue, changeValue, profitText, changeText, tradesText, successRateText, dateText, message;
+        
+        if (type === 'monthly') {
+            profitValue = parseFloat(monthlyProfit);
+            changeValue = parseFloat(monthlyChange);
+            profitText = monthlyProfit;
+            changeText = monthlyChange;
+            tradesText = monthlyProfitableLossTrades;
+            successRateText = monthlySuccessRate;
+            dateText = new Date().toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
+            
+            // Ustaw wiadomość w zależności od wyniku miesięcznego
+            if (profitValue > 100) {
+                message = 'Fantastyczny miesiąc! 🚀';
+            } else if (profitValue > 50) {
+                message = 'Świetny miesiąc! 💪';
+            } else if (profitValue > 0) {
+                message = 'Dobry miesiąc! 👍';
+            } else if (profitValue > -50) {
+                message = 'Następnym razem będzie lepiej! 💪';
+            } else {
+                message = 'Uczymy się na błędach! 📚';
+            }
+        } else { // total
+            profitValue = parseFloat(totalProfit);
+            changeValue = parseFloat(totalChange);
+            profitText = totalProfit;
+            changeText = totalChange;
+            tradesText = profitableTrades;
+            successRateText = totalSuccessRate;
+            dateText = 'all-time';
+            
+            // Ustaw wiadomość w zależności od wyniku całkowitego
+            if (profitValue > 500) {
+                message = 'Fantastyczne wyniki! 🚀';
+            } else if (profitValue > 200) {
+                message = 'Świetne wyniki! 💪';
+            } else if (profitValue > 0) {
+                message = 'Dobre wyniki! 👍';
+            } else if (profitValue > -200) {
+                message = 'Następnym razem będzie lepiej! 💪';
+            } else {
+                message = 'Uczymy się na błędach! 📚';
+            }
+        }
+
+        // Ustaw ikonę w zależności od wyniku
+        if (profitValue > 0) {
+            shareIcon.textContent = profitValue > 100 ? '🚀' : '⚡';
+        } else {
+            shareIcon.textContent = '📊';
+        }
+
+        // Wypełnij dane w karcie
+        shareUsername.textContent = currentSelectedUser.name;
+        shareDate.textContent = dateText;
+        sharePercentage.textContent = changeText;
+        
+        // Ustaw PnL z kolorowaniem
+        const sharePnlEl = document.getElementById('sharePnl');
+        const profitSign = profitValue >= 0 ? '+' : '';
+        const profitClass = profitValue >= 0 ? 'positive' : 'negative';
+        sharePnlEl.innerHTML = `PnL: <span class="${profitClass}">${profitSign}${profitText}</span>`;
+        sharePnlEl.className = 'share-pnl';
+        
+        // Ustaw opis transakcji
+        const shareTransactionsEl = document.getElementById('shareTransactions');
+        const [profitable, loss] = tradesText.split('/').map(Number);
+        const totalTrades = profitable + loss;
+        const successRate = totalTrades > 0 ? (profitable / totalTrades) * 100 : 0;
+        const successRateClass = successRate >= 50 ? '' : 'low';
+        
+        shareTransactionsEl.innerHTML = `Transakcje: <span class="transaction-count">${totalTrades}</span> | Skuteczność: <span class="success-rate ${successRateClass}">${successRate.toFixed(1)}%</span>`;
+        
+        shareMessage.textContent = message;
+
+        // Zresetuj checkbox
+        hideAmountCheckbox.checked = false;
+        sharePnlEl.classList.remove('hidden');
+
+        // Pokaż modal
+        shareResultModal.style.display = 'flex';
+        disableBodyScroll();
+    }
+
+    // Obsługa przycisku share w szczegółowych statystykach (miesięczne)
+    document.getElementById('shareStatsBtn').addEventListener('click', function() {
+        openShareStatsModal('monthly');
+    });
+
+    // Obsługa przycisku share w całkowitych statystykach
+    document.getElementById('shareTotalStatsBtn').addEventListener('click', function() {
+        openShareStatsModal('total');
+    });
 });
 
 // --- Funkcja testowa do dodania starej transakcji ---
@@ -1240,8 +1716,9 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addTestTransaction = async function() {
     console.log("Dodawanie testowej transakcji archiwalnej...");
     try {
-        const oldDate = new Date();
-        oldDate.setMonth(oldDate.getMonth() - 2); // Data 2 miesiące wstecz
+        // Poprawiona logika obliczania daty 2 miesiące wstecz
+        const now = new Date();
+        const oldDate = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
 
         await addDoc(collection(db, "transactions"), {
             type: 'trade',
@@ -1259,6 +1736,41 @@ window.addTestTransaction = async function() {
         console.error("Błąd podczas dodawania transakcji archiwalnej: ", error);
         alert("Wystąpił błąd: " + error.message);
     }
+}
+
+// Funkcja pomocnicza do sprawdzania transakcji w archiwum
+window.checkArchiveTransactions = function() {
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    console.log('=== INFORMACJE O ARCHIWUM ===');
+    console.log('Data początkowa bieżącego miesiąca:', currentMonthStart.toISOString());
+    console.log('Liczba wszystkich transakcji:', cachedTransactions.length);
+    
+    const archiveTransactions = cachedTransactions.filter(transaction => {
+        const transactionDate = transaction.createdAt.toDate();
+        return transactionDate < currentMonthStart;
+    });
+    
+    console.log('Liczba transakcji w archiwum:', archiveTransactions.length);
+    
+    if (archiveTransactions.length > 0) {
+        console.log('Przykładowe transakcje w archiwum:');
+        archiveTransactions.slice(0, 5).forEach((transaction, index) => {
+            const transactionDate = transaction.createdAt.toDate();
+            console.log(`${index + 1}. ${transactionDate.toISOString()} - ${transaction.type} - ${transaction.amount || 'N/A'}`);
+        });
+    } else {
+        console.log('Brak transakcji w archiwum.');
+    }
+    
+    const currentTransactions = cachedTransactions.filter(transaction => {
+        const transactionDate = transaction.createdAt.toDate();
+        return transactionDate >= currentMonthStart;
+    });
+    
+    console.log('Liczba transakcji w bieżącym miesiącu:', currentTransactions.length);
+    console.log('================================');
 }
 
     function drawMonthlyProfitsChart(transactions, currentUser) {

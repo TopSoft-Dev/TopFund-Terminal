@@ -1377,3 +1377,294 @@ body.dark-mode .details-content {
         padding: 5px;
     }
 }
+
+/* Style dla nowych elementów w modalu ze statystykami */
+.stats-section {
+    margin-bottom: 20px;
+}
+
+.stats-section h3 {
+    color: var(--header-color);
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 1.1em;
+}
+
+.stats-separator {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+    margin: 25px 0;
+    border-radius: 1px;
+}
+
+/* Responsywność dla nowych elementów */
+@media (max-width: 768px) {
+    .stats-section h3 {
+        font-size: 1em;
+        margin-bottom: 12px;
+    }
+    
+    .stats-separator {
+        margin: 20px 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-section {
+        margin-bottom: 15px;
+    }
+    
+    .stats-section h3 {
+        font-size: 0.95em;
+        margin-bottom: 10px;
+    }
+    
+    .stats-separator {
+        margin: 15px 0;
+    }
+}
+
+/* Style dla modala udostępniania */
+.share-modal {
+    max-width: 500px;
+    width: 90%;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.modal-header h2 {
+    margin: 0;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.modal-header h3 {
+    margin: 0;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.share-card {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    border-radius: 16px;
+    padding: 24px;
+    margin: 20px 0;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    border: 1px solid #333;
+    position: relative;
+    overflow: hidden;
+}
+
+.share-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #2ecc71, #27ae60);
+}
+
+.share-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.share-user-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.share-username {
+    font-size: 18px;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+.share-date {
+    font-size: 14px;
+    color: #888;
+}
+
+.share-icon {
+    font-size: 32px;
+}
+
+.share-card-content {
+    text-align: center;
+}
+
+.share-result {
+    margin-bottom: 16px;
+}
+
+.share-percentage {
+    display: block;
+    font-size: 36px;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #2ecc71;
+}
+
+.share-pnl-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.share-pnl {
+    display: block;
+    font-size: 20px;
+    color: #ffffff;
+    opacity: 0.9;
+    font-weight: 600;
+}
+
+.share-pnl.positive {
+    color: #2ecc71;
+}
+
+.share-pnl.negative {
+    color: #e74c3c;
+}
+
+.share-pnl.hidden {
+    display: none;
+}
+
+.share-pnl .positive {
+    color: #2ecc71;
+}
+
+.share-pnl .negative {
+    color: #e74c3c;
+}
+
+.share-pnl {
+    color: #ffffff;
+    opacity: 0.8;
+}
+
+.share-transactions {
+    display: block;
+    font-size: 16px;
+    color: #ffffff;
+    opacity: 0.8;
+}
+
+.share-transactions .transaction-count {
+    color: #2ecc71;
+}
+
+.share-transactions .success-rate {
+    color: #2ecc71;
+}
+
+.share-transactions .success-rate.low {
+    color: #f39c12;
+}
+
+.share-amount {
+    display: block;
+    font-size: 20px;
+    color: #ffffff;
+    opacity: 0.9;
+}
+
+.share-amount.hidden {
+    display: none;
+}
+
+.share-message {
+    font-size: 16px;
+    color: #ffffff;
+    opacity: 0.8;
+}
+
+.share-options {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.share-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    color: var(--text-color);
+}
+
+.share-option input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+/* Style dla przycisku share w tabeli */
+.share-btn {
+    background: #000000;
+    color: white;
+    border: none;
+}
+
+.share-btn:hover {
+    background: #333333;
+    transform: scale(1.1);
+}
+
+/* Responsywność dla modala udostępniania */
+@media (max-width: 768px) {
+    .share-modal {
+        width: 95%;
+        margin: 10px;
+    }
+    
+    .share-card {
+        padding: 20px;
+    }
+    
+    .share-percentage {
+        font-size: 28px;
+    }
+    
+    .share-amount {
+        font-size: 16px;
+    }
+    
+    .share-username {
+        font-size: 16px;
+    }
+    
+    .share-icon {
+        font-size: 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    .share-card {
+        padding: 16px;
+    }
+    
+    .share-percentage {
+        font-size: 24px;
+    }
+    
+    .share-amount {
+        font-size: 14px;
+    }
+    
+    .share-message {
+        font-size: 14px;
+    }
+}

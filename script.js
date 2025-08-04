@@ -779,6 +779,46 @@ document.addEventListener('DOMContentLoaded', () => {
             // Wyświetl nagłówki miesięcy i ukryte transakcje
             sortedMonths.forEach(monthKey => {
                 const monthData = monthlyGroups[monthKey];
+                
+                // Oblicz zysk/stratę dla tego miesiąca
+                let monthProfit = 0;
+                monthData.transactions.forEach(transaction => {
+                    if (transaction.type === 'trade' && transaction.details) {
+                        if (currentUser && currentUser.name !== 'Topciu') {
+                            // Dla zwykłych użytkowników - tylko ich zysk
+                            const userDetail = Object.values(transaction.details).find(detail => detail.name === currentUser.name);
+                            if (userDetail) {
+                                monthProfit += userDetail.profitLossShare - (userDetail.commissionPaid || 0);
+                            }
+                        } else if (currentUser && currentUser.name === 'Topciu') {
+                            // Dla Topcia - suma wszystkich zysków
+                            Object.values(transaction.details).forEach(detail => {
+                                let userProfit = detail.profitLossShare;
+                                if (detail.name === 'Topciu') {
+                                    // Dla Topcia dodaj prowizje zebrane
+                                    userProfit += detail.commissionCollected || 0;
+                                } else {
+                                    // Dla innych użytkowników odejmij prowizje
+                                    userProfit -= detail.commissionPaid || 0;
+                                }
+                                monthProfit += userProfit;
+                            });
+                        }
+                    } else if (transaction.type === 'deposit' || transaction.type === 'withdrawal') {
+                        // Dla wpłat/wypłat dodaj do zysku
+                        if (currentUser && currentUser.name !== 'Topciu' && transaction.userName === currentUser.name) {
+                            monthProfit += transaction.type === 'deposit' ? transaction.amount : -transaction.amount;
+                        } else if (currentUser && currentUser.name === 'Topciu') {
+                            // Dla Topcia uwzględnij wpłaty/wypłaty wszystkich użytkowników
+                            monthProfit += transaction.type === 'deposit' ? transaction.amount : -transaction.amount;
+                        }
+                    }
+                });
+                
+                // Przygotuj tekst z zyskiem/stratą
+                const profitText = monthProfit >= 0 ? `+${monthProfit.toFixed(2)}` : `${monthProfit.toFixed(2)}`;
+                const profitClass = monthProfit >= 0 ? 'positive-amount' : 'negative-amount';
+                
                 // Dodaj nagłówek miesiąca z przyciskiem +
                 const monthHeader = document.createElement('tr');
                 monthHeader.className = 'month-header';
@@ -787,7 +827,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="month-header-content">
                             <button class="toggle-month-btn" data-month="${monthKey}">+</button>
                             <span class="month-label">${monthData.label}</span>
-                            <span class="month-transaction-count">(${monthData.transactions.length} transakcji)</span>
+                            <span class="month-transaction-count">(${monthData.transactions.length} transakcji <span class="${profitClass}">${profitText} USD</span>)</span>
                         </div>
                     </td>
                 `;

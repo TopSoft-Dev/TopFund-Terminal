@@ -34,6 +34,71 @@ body.modal-open {
     overflow: hidden;
 }
 
+/* Style dla nagłówków miesięcy w archiwum */
+.month-header {
+    background-color: var(--card-background);
+    border-left: 4px solid var(--primary-color);
+    font-weight: bold;
+}
+
+.month-header-cell {
+    padding: 12px 15px !important;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.month-header-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.toggle-month-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s;
+}
+
+.toggle-month-btn:hover {
+    background: #2980b9;
+}
+
+.month-label {
+    font-size: 16px;
+    color: var(--header-color);
+}
+
+.month-transaction-count {
+    font-size: 14px;
+    color: var(--text-color);
+    opacity: 0.8;
+}
+
+.month-transaction-count .positive-amount {
+    color: var(--secondary-color);
+    font-weight: bold;
+}
+
+.month-transaction-count .negative-amount {
+    color: #e67e22;
+    font-weight: bold;
+}
+
+body.dark-mode .month-transaction-count .negative-amount {
+    color: #d35400;
+}
+
+
+
 .container {
     max-width: 1200px;
     margin: 0 auto;
@@ -853,6 +918,25 @@ body.dark-mode .details-content {
         padding: 8px;
         font-size: 16px; /* Zapobiega zoom na iOS */
     }
+    
+    /* Responsywne style dla nagłówków miesięcy */
+    .month-header-content {
+        gap: 8px;
+    }
+    
+    .month-label {
+        font-size: 14px;
+    }
+    
+    .month-transaction-count {
+        font-size: 12px;
+    }
+    
+    .toggle-month-btn {
+        width: 20px;
+        height: 20px;
+        font-size: 12px;
+    }
 }
 
 /* Telefony - bardzo małe ekrany */
@@ -1029,6 +1113,27 @@ body.dark-mode .details-content {
     .percentage-change {
         font-size: 0.8em;
         padding: 2px 4px;
+    }
+    
+    /* Responsywne style dla nagłówków miesięcy na bardzo małych ekranach */
+    .month-header-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 3px;
+    }
+    
+    .month-label {
+        font-size: 12px;
+    }
+    
+    .month-transaction-count {
+        font-size: 10px;
+    }
+    
+    .toggle-month-btn {
+        width: 18px;
+        height: 18px;
+        font-size: 10px;
     }
 }
 

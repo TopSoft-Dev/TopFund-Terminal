@@ -33,6 +33,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -108,6 +111,36 @@
                 <input type="number" id="transaction-amount" placeholder="Kwota (USD)" step="0.01" required>
                 <button type="submit">Dodaj transakcję</button>
             </form>
+        </section>
+
+        <section id="widgets-section" class="card" style="display: none;">
+            <h2>Widgety</h2>
+            <div id="widgets-container">
+                <div class="widget-card">
+                    <h3>Miesięczny tracker</h3>
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="monthly-progress-fill"></div>
+                        </div>
+                        <div class="progress-info">
+                            <span class="progress-percentage" id="monthly-progress-percentage">0%</span>
+                            <span class="progress-target">Cel: 3%</span>
+                        </div>
+                    </div>
+
+                </div>
+                
+                <div class="widget-card" id="percentage-chart-widget">
+                    <h3>Wykres zysku dziennego</h3>
+                    <div class="chart-container-small">
+                        <canvas id="percentage-chart" width="300" height="150"></canvas>
+                    </div>
+                    <div class="chart-info">
+                        <span class="chart-current-value" id="chart-current-percentage">0.00 USD</span>
+                        <span class="chart-period">Ostatnie 7 dni</span>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <section id="history-section" class="card">
@@ -331,6 +364,102 @@
                     <input type="checkbox" id="hideAmountCheckbox">
                     <span>Ukryj kwotę</span>
                 </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal ze SZCZEGÓŁAMI TRACKERA -->
+    <div id="trackerDetailsModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeTrackerDetailsModalBtn">&times;</span>
+            <div class="modal-header">
+                <h2>Szczegóły tracker'a</h2>
+            </div>
+            <div id="trackerDetailsContent">
+                <!-- Sekcja: POSTĘP DO CELU -->
+                <div class="stats-section">
+                    <h3>Postęp do celu 3%</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Aktualny postęp:</span>
+                            <span class="stat-value" id="trackerCurrentProgress">0.0%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Pozostało do celu:</span>
+                            <span class="stat-value" id="trackerRemaining">0.0%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Pozostała kwota:</span>
+                            <span class="stat-value" id="trackerRemainingAmount">0.00 USD</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Dni do końca miesiąca:</span>
+                            <span class="stat-value" id="trackerDaysLeft">0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Separator -->
+                <div class="stats-separator"></div>
+                
+                <!-- Sekcja: SZCZEGÓŁY OBLICZEŃ -->
+                <div class="stats-section">
+                    <h3>Szczegóły obliczeń</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Zysk z bieżącego miesiąca:</span>
+                            <span class="stat-value" id="trackerCurrentProfit">0.00 USD</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Cel kwotowy (3%):</span>
+                            <span class="stat-value" id="trackerTargetAmount">0.00 USD</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal z WYKRESEM ZMIANY PROCENTOWEJ -->
+    <div id="percentageChartModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closePercentageChartModalBtn">&times;</span>
+            <div class="modal-header">
+                <h2>Wykres zysku dziennego</h2>
+            </div>
+            <div id="percentageChartContent">
+                <!-- Sekcja: WYKRES -->
+                <div class="stats-section">
+                    <div class="chart-header">
+                        <h3>Zysk dzienny</h3>
+                        <div class="chart-period-buttons">
+                            <button class="period-btn active" data-period="7">7 dni</button>
+                            <button class="period-btn" data-period="30">30 dni</button>
+                            <button class="period-btn" data-period="60">60 dni</button>
+                        </div>
+                    </div>
+                    <div class="chart-container-large">
+                        <canvas id="percentage-chart-large" width="800" height="400"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Separator -->
+                <div class="stats-separator"></div>
+                
+                <!-- Sekcja: STATYSTYKI -->
+                <div class="stats-section">
+                    <h3>Statystyki zysku dziennego</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Dzisiejszy zysk:</span>
+                            <span class="stat-value" id="percentageCurrentChange">0.00 USD</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Średni zysk:</span>
+                            <span class="stat-value" id="percentageAvgChange">0.00 USD</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

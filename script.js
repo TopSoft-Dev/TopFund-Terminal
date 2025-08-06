@@ -108,6 +108,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const shareMessage = document.getElementById('shareMessage');
     const hideAmountCheckbox = document.getElementById('hideAmountCheckbox');
 
+    // Elementy modala szczegółów trackera
+    const trackerDetailsModal = document.getElementById('trackerDetailsModal');
+    const closeTrackerDetailsModalBtn = document.getElementById('closeTrackerDetailsModalBtn');
+
+    // Elementy modala wykresu procentowego
+    const percentageChartModal = document.getElementById('percentageChartModal');
+    const closePercentageChartModalBtn = document.getElementById('closePercentageChartModalBtn');
+
     // Funkcje do zarządzania scrollowaniem
     function disableBodyScroll() {
         document.body.classList.add('modal-open');
@@ -181,6 +189,51 @@ document.addEventListener('DOMContentLoaded', () => {
                         usersSection.style.display = 'block';
                         userCard.style.display = 'none';
                         showDetailsBtn.style.display = 'none';
+                        const widgetsSection = document.getElementById('widgets-section');
+                        console.log('Widget: Próba pokazania sekcji widgetów');
+                        console.log('Widget: widgetsSection element:', widgetsSection);
+                        
+                        if (widgetsSection) {
+                            widgetsSection.style.display = 'block'; // Pokaż sekcję widgetów
+                            console.log('Widget: Sekcja widgetów pokazana');
+                            console.log('Widget: Style sekcji po zmianie:', widgetsSection.style.display);
+                            
+                            // Sprawdź czy elementy widgetu są dostępne
+                            const progressFill = document.getElementById('monthly-progress-fill');
+                            const progressPercentageEl = document.getElementById('monthly-progress-percentage');
+                            
+                            console.log('Widget: Elementy po pokazaniu sekcji:');
+                            console.log('- progressFill:', progressFill);
+                            console.log('- progressPercentageEl:', progressPercentageEl);
+                        } else {
+                            console.log('Widget: BŁĄD - Nie znaleziono sekcji widgetów!');
+                        }
+                        
+                        // Natychmiastowe sprawdzenie elementów
+                        const progressFill = document.getElementById('monthly-progress-fill');
+                        const progressPercentageEl = document.getElementById('monthly-progress-percentage');
+                        
+                        if (progressFill && progressPercentageEl) {
+                            console.log('Widget: Elementy znalezione natychmiast - aktualizuję widget');
+                            updateMonthlyProgressWidget(cachedTransactions, loggedInUser);
+                        } else {
+                            // Jeśli elementy nie są dostępne, spróbuj ponownie po krótkim opóźnieniu
+                            setTimeout(() => {
+                                console.log('Widget: Sprawdzenie elementów po 100ms');
+                                const progressFill = document.getElementById('monthly-progress-fill');
+                                const progressPercentageEl = document.getElementById('monthly-progress-percentage');
+                                
+                                if (progressFill && progressPercentageEl) {
+                                    console.log('Widget: Elementy znalezione po opóźnieniu - aktualizuję widget');
+                                    updateMonthlyProgressWidget(cachedTransactions, loggedInUser);
+                            
+                            // Automatycznie wczytaj widget wykresu zysku dziennego
+                            const chartData = generatePercentageChartData(7);
+                            drawPercentageChart(chartData, 'percentage-chart');
+                            updatePercentageChartStats(chartData);
+                                }
+                            }, 100);
+                        }
                         
                         // AKTYWACJA: Uruchom inicjalizację użytkowników terminala
                         initializeTerminalUsers(); 
@@ -193,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         userCard.style.display = 'block';
                         monthlyProfitsSection.style.display = 'block';
                         showDetailsBtn.style.display = 'none';
+                        document.getElementById('widgets-section').style.display = 'none'; // Ukryj sekcję widgetów
                         usernameDisplay.textContent = loggedInUser.name;
                     }
                     displayUserSummaryCards(cachedUsers, loggedInUser);
@@ -273,6 +327,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.error(`Błąd podczas konfiguracji użytkownika ${userData.name}:`, error);
                 }
             }
+        }
+        
+        // Inicjalizuj widget wykresu po załadowaniu użytkowników
+        if (loggedInUser && loggedInUser.name === 'Topciu') {
+            setTimeout(() => {
+                const chartData = generatePercentageChartData(7);
+                drawPercentageChart(chartData, 'percentage-chart');
+                updatePercentageChartStats(chartData);
+            }, 200); // Krótkie opóźnienie dla pewności, że DOM jest gotowy
         }
     }
     
@@ -1159,6 +1222,10 @@ document.addEventListener('DOMContentLoaded', () => {
             shareResultModal.style.display = "none";
             enableBodyScroll();
         }
+        if (event.target == trackerDetailsModal) {
+            trackerDetailsModal.style.display = "none";
+            enableBodyScroll();
+        }
     });
 
     // Obsługa modala ze statystykami
@@ -1479,6 +1546,172 @@ document.addEventListener('DOMContentLoaded', () => {
         displayTransactions(cachedTransactions, loggedInUser); // Odśwież widok z nowym filtrem
     });
 
+    // --- FUNKCJA DO OBSŁUGI WIDGETÓW ---
+    function updateMonthlyProgressWidget(transactions, currentUser) {
+        console.log('=== WIDGET DEBUG START ===');
+        console.log('Widget: Funkcja wywołana');
+        console.log('Widget: currentUser:', currentUser);
+        
+        if (!currentUser || currentUser.name !== 'Topciu') {
+            console.log('Widget: Nie Topciu lub brak użytkownika');
+            return;
+        }
+        
+        // Sprawdź czy mamy dane użytkowników
+        if (!cachedUsers || cachedUsers.length === 0) {
+            console.log('Widget: Brak danych użytkowników, czekam...');
+            return;
+        }
+        
+        const now = new Date();
+        const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const targetPercentage = 3; // Cel: 3%
+        
+        // Oblicz saldo na początku miesiąca
+        let balanceAtMonthStart = 0;
+        const activeUsers = cachedUsers.filter(user => {
+            const permissions = user.permissions || [];
+            return user.name === 'Topciu' || permissions.includes('topfund-terminal');
+        });
+        
+        console.log('Widget: Aktywni użytkownicy:', activeUsers.map(u => u.name));
+        
+        // Oblicz saldo początkowe dla wszystkich aktywnych użytkowników
+        activeUsers.forEach(user => {
+            balanceAtMonthStart += user.startBalance || 0;
+        });
+        
+        console.log('Widget: Saldo początkowe z startBalance:', balanceAtMonthStart);
+        
+        // Oblicz transakcje przed bieżącym miesiącem, aby uzyskać rzeczywiste saldo na początku miesiąca
+        let balanceAtMonthStartAfterTransactions = balanceAtMonthStart;
+        transactions.forEach(transaction => {
+            const transactionDate = transaction.createdAt.toDate();
+            if (transactionDate < currentMonthStart) {
+                if (transaction.type === 'trade' && transaction.details) {
+                    // Dla transakcji trade, dodaj zyski/straty do salda początkowego
+                    activeUsers.forEach(user => {
+                        const userDetail = transaction.details[user.id];
+                        if (userDetail) {
+                            let userProfit = userDetail.profitLossShare - (userDetail.commissionPaid || 0);
+                            if (user.name === 'Topciu' && userDetail.commissionCollected) {
+                                userProfit += userDetail.commissionCollected;
+                            }
+                            balanceAtMonthStartAfterTransactions += userProfit;
+                        }
+                    });
+                } else if ((transaction.type === 'deposit' || transaction.type === 'withdrawal')) {
+                    // Dla wpłat/wypłat, dodaj do salda początkowego
+                    const amount = transaction.type === 'deposit' ? transaction.amount : -transaction.amount;
+                    balanceAtMonthStartAfterTransactions += amount;
+                }
+            }
+        });
+        
+        console.log('Widget: Saldo na początku miesiąca (po transakcjach):', balanceAtMonthStartAfterTransactions);
+        
+        // Użyj salda po transakcjach jako bazę do obliczeń
+        balanceAtMonthStart = balanceAtMonthStartAfterTransactions;
+        
+
+        
+        // Oblicz zysk z bieżącego miesiąca
+        let currentMonthProfit = 0;
+        transactions.forEach(transaction => {
+            const transactionDate = transaction.createdAt.toDate();
+            if (transactionDate >= currentMonthStart) {
+                if (transaction.type === 'trade' && transaction.details) {
+                    activeUsers.forEach(user => {
+                        const userDetail = transaction.details[user.id];
+                        if (userDetail) {
+                            let userProfit = userDetail.profitLossShare - (userDetail.commissionPaid || 0);
+                            if (user.name === 'Topciu' && userDetail.commissionCollected) {
+                                userProfit += userDetail.commissionCollected;
+                            }
+                            currentMonthProfit += userProfit;
+                        }
+                    });
+                } else if ((transaction.type === 'deposit' || transaction.type === 'withdrawal')) {
+                    const amount = transaction.type === 'deposit' ? transaction.amount : -transaction.amount;
+                    currentMonthProfit += amount;
+                }
+            }
+        });
+        
+        console.log('Widget: Zysk z bieżącego miesiąca:', currentMonthProfit);
+        
+        // Oblicz procent postępu do celu
+        let progressPercentage = 0;
+        if (balanceAtMonthStart > 0) {
+            const actualPercentage = (currentMonthProfit / balanceAtMonthStart) * 100;
+            // Oblicz procent postępu do celu (np. 0.7% z 3% = 23.3%)
+            progressPercentage = Math.min((actualPercentage / targetPercentage) * 100, 100);
+        } else if (currentMonthProfit > 0) {
+            progressPercentage = 100; // Jeśli nie było salda początkowego, ale jest zysk
+        }
+        
+        console.log('Widget: Procent postępu do celu:', progressPercentage);
+        console.log('Widget: Rzeczywisty procent:', (currentMonthProfit / balanceAtMonthStart) * 100);
+        
+        // Aktualizuj widget
+        const progressFill = document.getElementById('monthly-progress-fill');
+        const progressPercentageEl = document.getElementById('monthly-progress-percentage');
+        
+        console.log('Widget: Elementy DOM:');
+        console.log('- progressFill:', progressFill);
+        console.log('- progressPercentageEl:', progressPercentageEl);
+        
+        if (progressFill && progressPercentageEl) {
+            // Ogranicz postęp do maksymalnie 100% dla wizualizacji
+            const visualProgress = Math.min(progressPercentage, 100);
+            
+            // Sprawdź czy pasek jest już zainicjalizowany
+            const currentWidth = progressFill.style.width;
+            const isInitialized = currentWidth && currentWidth !== '0%';
+            
+            if (!isInitialized) {
+                // Pierwsze uruchomienie - ustaw na 0% i animuj
+                progressFill.style.width = '0%';
+                
+                // Użyj setTimeout aby dać czas na renderowanie początkowego stanu
+                setTimeout(() => {
+                    // Płynnie wypełnij pasek do docelowej wartości
+                    progressFill.style.width = `${visualProgress}%`;
+                }, 100);
+            } else {
+                // Kolejne uruchomienia - animuj bezpośrednio
+                progressFill.style.width = `${visualProgress}%`;
+            }
+            
+            progressPercentageEl.textContent = `${(currentMonthProfit / balanceAtMonthStart * 100).toFixed(1)}%`;
+            
+            // Zmień kolor paska w zależności od postępu do celu
+            if (progressPercentage >= 100) {
+                progressFill.style.background = 'linear-gradient(90deg, #2ecc71, #27ae60)';
+            } else if (progressPercentage >= 50) {
+                progressFill.style.background = 'linear-gradient(90deg, #f39c12, #e67e22)';
+            } else {
+                progressFill.style.background = 'linear-gradient(90deg, #e67e22, #f39c12)';
+            }
+            
+            console.log('Widget: Zaktualizowano - Postęp do celu:', visualProgress + '%', 'Kolor:', progressFill.style.background);
+            
+            // Zapisz dane do modala szczegółów
+            window.trackerData = {
+                currentProgress: (currentMonthProfit / balanceAtMonthStart * 100),
+                targetPercentage: targetPercentage,
+                remainingPercentage: Math.max(0, targetPercentage - (currentMonthProfit / balanceAtMonthStart * 100)),
+                remainingAmount: Math.max(0, (balanceAtMonthStart * targetPercentage / 100) - currentMonthProfit),
+                startBalance: balanceAtMonthStart,
+                currentProfit: currentMonthProfit,
+                targetAmount: balanceAtMonthStart * targetPercentage / 100,
+                daysLeft: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() - new Date().getDate()
+            };
+        } else {
+            console.log('Widget: Nie znaleziono elementów DOM');
+        }
+    }
+
     // --- GŁÓWNE NASŁUCHIWANIE NA ZMIANY W BAZIE ---
     onSnapshot(query(collection(db, "users"), orderBy("createdAt")), (snapshot) => {
         const allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -1493,11 +1726,55 @@ document.addEventListener('DOMContentLoaded', () => {
         displayUsers(cachedUsers);
         displayUserSummaryCards(cachedUsers, loggedInUser);
         populateTransactionUserSelect(cachedUsers);
+        
+        // Aktualizuj widget po załadowaniu danych użytkowników
+        if (loggedInUser && loggedInUser.name === 'Topciu' && cachedTransactions && cachedTransactions.length >= 0) {
+            console.log('Widget: Wywołanie po załadowaniu użytkowników');
+            
+            // Sprawdź czy elementy widgetu istnieją
+            const progressFill = document.getElementById('monthly-progress-fill');
+            const progressPercentageEl = document.getElementById('monthly-progress-percentage');
+            
+            console.log('Widget: Sprawdzenie elementów DOM:');
+            console.log('- progressFill:', progressFill);
+            console.log('- progressPercentageEl:', progressPercentageEl);
+            
+            if (progressFill && progressPercentageEl) {
+                updateMonthlyProgressWidget(cachedTransactions, loggedInUser);
+                
+                // Inicjalizuj widget wykresu procentowego
+                const chartData = generatePercentageChartData(7);
+                drawPercentageChart(chartData, 'percentage-chart');
+                updatePercentageChartStats(chartData);
+            } else {
+                console.log('Widget: BŁĄD - Brak elementów DOM widgetu!');
+                
+                // Sprawdź czy sekcja widgetów jest widoczna
+                const widgetsSection = document.getElementById('widgets-section');
+                console.log('Widget: Sekcja widgetów w tym momencie:', widgetsSection);
+                if (widgetsSection) {
+                    console.log('Widget: Style sekcji widgetów:', widgetsSection.style.display);
+                }
+            }
+        }
     });
 
     onSnapshot(query(collection(db, "transactions"), orderBy("createdAt", "desc")), (snapshot) => {
         cachedTransactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         displayTransactions(cachedTransactions, loggedInUser); // Wyświetl dane z uwzględnieniem filtra archiwum
+        
+        // Aktualizuj widget tylko jeśli mamy dane użytkowników
+        if (cachedUsers && cachedUsers.length > 0) {
+            console.log('Widget: Wywołanie po załadowaniu transakcji');
+            updateMonthlyProgressWidget(cachedTransactions, loggedInUser); // Aktualizuj widget miesięcznego trackera
+            
+            // Automatycznie wczytaj widget wykresu zysku dziennego
+            if (loggedInUser && loggedInUser.name === 'Topciu') {
+                const chartData = generatePercentageChartData(7);
+                drawPercentageChart(chartData, 'percentage-chart');
+                updatePercentageChartStats(chartData);
+            }
+        }
     });
 
     // --- Obsługa zmiany motywu ---
@@ -1529,6 +1806,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 drawEnlargedMonthlyProfitsChart(cachedTransactions, loggedInUser);
             }
         }
+        
+        // Odśwież widgety po zmianie motywu
+        if (loggedInUser && loggedInUser.name === 'Topciu') {
+            updateMonthlyProgressWidget(cachedTransactions, loggedInUser);
+            
+            // Odśwież widget wykresu procentowego
+            const chartData = generatePercentageChartData(7);
+            drawPercentageChart(chartData, 'percentage-chart');
+            updatePercentageChartStats(chartData);
+        }
     });
 
     // Obsługa modala z większym wykresem
@@ -1540,6 +1827,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Obsługa modala udostępniania
     closeShareResultModalBtn.addEventListener('click', () => {
         shareResultModal.style.display = 'none';
+        enableBodyScroll();
+    });
+
+    // Obsługa modala szczegółów trackera
+    closeTrackerDetailsModalBtn.addEventListener('click', () => {
+        trackerDetailsModal.style.display = 'none';
+        enableBodyScroll();
+    });
+    
+    // Obsługa modala wykresu procentowego
+    closePercentageChartModalBtn.addEventListener('click', () => {
+        percentageChartModal.style.display = 'none';
         enableBodyScroll();
     });
 
@@ -1623,6 +1922,43 @@ document.addEventListener('DOMContentLoaded', () => {
         // Zresetuj checkbox
         hideAmountCheckbox.checked = false;
         sharePnlEl.classList.remove('hidden');
+    }
+
+    // Funkcja do otwierania modala szczegółów trackera
+    function openTrackerDetailsModal() {
+        if (!window.trackerData) {
+            console.log('Tracker: Brak danych trackera');
+            return;
+        }
+        
+        const data = window.trackerData;
+        
+        // Aktualizuj elementy modala
+        document.getElementById('trackerCurrentProgress').textContent = `${data.currentProgress.toFixed(1)}%`;
+        document.getElementById('trackerRemaining').textContent = `${data.remainingPercentage.toFixed(1)}%`;
+        document.getElementById('trackerRemainingAmount').textContent = `${data.remainingAmount.toFixed(2)} USD`;
+        document.getElementById('trackerCurrentProfit').textContent = `${data.currentProfit.toFixed(2)} USD`;
+        document.getElementById('trackerTargetAmount').textContent = `${data.targetAmount.toFixed(2)} USD`;
+        document.getElementById('trackerDaysLeft').textContent = data.daysLeft;
+        
+        // Dodaj kolory do wartości
+        const currentProgressEl = document.getElementById('trackerCurrentProgress');
+        const remainingEl = document.getElementById('trackerRemaining');
+        const currentProfitEl = document.getElementById('trackerCurrentProfit');
+        const remainingAmountEl = document.getElementById('trackerRemainingAmount');
+        const targetAmountEl = document.getElementById('trackerTargetAmount');
+        
+        currentProgressEl.className = data.currentProgress >= 0 ? 'stat-value positive-amount' : 'stat-value negative-amount';
+        remainingEl.className = 'stat-value';
+        currentProfitEl.className = data.currentProfit >= 0 ? 'stat-value positive-amount' : 'stat-value negative-amount';
+        
+        // Kwoty USD na zielono
+        remainingAmountEl.className = 'stat-value positive-amount';
+        targetAmountEl.className = 'stat-value positive-amount';
+        
+        // Pokaż modal
+        trackerDetailsModal.style.display = 'flex';
+        disableBodyScroll();
     }
 
     // Funkcja do otwierania modala udostępniania statystyk
@@ -1750,6 +2086,277 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('shareTotalStatsBtn').addEventListener('click', function() {
         openShareStatsModal('total');
     });
+
+    // Obsługa kliknięcia na widget tracker
+    document.addEventListener('click', function(event) {
+        const widgetCard = event.target.closest('.widget-card');
+        if (widgetCard && loggedInUser && loggedInUser.name === 'Topciu') {
+            // Sprawdź czy to widget wykresu procentowego
+            if (widgetCard.id === 'percentage-chart-widget') {
+                openPercentageChartModal();
+            } else {
+            openTrackerDetailsModal();
+            }
+        }
+    });
+    
+    // Funkcja do otwierania modala wykresu procentowego
+    function openPercentageChartModal() {
+        if (!loggedInUser || loggedInUser.name !== 'Topciu') return;
+        
+        // Generuj dane dla wykresu (domyślnie 7 dni)
+        const chartData = generatePercentageChartData(7);
+        
+        // Rysuj wykres w małym widgetcie
+        drawPercentageChart(chartData, 'percentage-chart');
+        
+        // Rysuj wykres w dużym modalu
+        drawPercentageChart(chartData, 'percentage-chart-large', true);
+        
+        // Aktualizuj statystyki
+        updatePercentageChartStats(chartData);
+        
+        // Pokaż modal
+        const percentageChartModal = document.getElementById('percentageChartModal');
+        percentageChartModal.style.display = 'flex';
+        disableBodyScroll();
+        
+        // Dodaj obsługę przycisków okresu
+        setupPeriodButtons();
+    }
+
+    // Funkcja do generowania danych dla wykresu zysku dziennego
+    function generatePercentageChartData(days = 7) {
+        const data = [];
+        const now = new Date();
+        
+        // Generuj dane dla określonej liczby dni
+        for (let i = days - 1; i >= 0; i--) {
+            const date = new Date(now);
+            date.setDate(date.getDate() - i);
+            
+            // Oblicz rzeczywisty zysk dla tego dnia z transakcji
+            let dailyProfit = 0;
+            
+            if (cachedTransactions && cachedTransactions.length > 0) {
+                cachedTransactions.forEach(transaction => {
+                    const transactionDate = transaction.createdAt.toDate();
+                    const isSameDay = transactionDate.getDate() === date.getDate() &&
+                                    transactionDate.getMonth() === date.getMonth() &&
+                                    transactionDate.getFullYear() === date.getFullYear();
+                    
+                    if (isSameDay) {
+                        if (transaction.type === 'trade' && transaction.details) {
+                            // Dla transakcji trade, oblicz zysk dla Topcia
+                            Object.values(transaction.details).forEach(detail => {
+                                if (detail.name === 'Topciu') {
+                                    let userProfit = detail.profitLossShare - (detail.commissionPaid || 0);
+                                    if (detail.commissionCollected) {
+                                        userProfit += detail.commissionCollected;
+                                    }
+                                    dailyProfit += userProfit;
+                                }
+                            });
+                        } else if (transaction.type === 'deposit') {
+                            dailyProfit += transaction.amount;
+                        } else if (transaction.type === 'withdrawal') {
+                            dailyProfit -= transaction.amount;
+                        }
+                    }
+                });
+            }
+            
+            data.push({
+                date: date,
+                profit: dailyProfit,
+                label: date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' })
+            });
+        }
+        
+        return data;
+    }
+
+    // Funkcja do rysowania wykresu procentowego z Chart.js
+    function drawPercentageChart(data, canvasId, isLarge = false) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        
+        // Zniszcz istniejący wykres jeśli istnieje
+        if (canvas.chart) {
+            canvas.chart.destroy();
+        }
+        
+        // Ustaw stały rozmiar dla dużego wykresu
+        if (isLarge) {
+            // Sprawdź czy to urządzenie mobilne
+            const isMobile = window.innerWidth <= 768;
+            if (isMobile) {
+                canvas.width = window.innerWidth - 40; // Odejmij padding
+                canvas.height = 250; // Mniejsza wysokość na mobile
+            } else {
+                canvas.width = 800;
+                canvas.height = 400;
+            }
+        }
+        
+        // Przygotuj dane dla Chart.js
+        const chartData = {
+            labels: data.map(d => d.label),
+            datasets: [{
+                label: 'Zysk dzienny (USD)',
+                data: data.map(d => d.profit),
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                borderWidth: isLarge ? 3 : 2,
+                pointBackgroundColor: '#3498db',
+                pointBorderColor: '#3498db',
+                pointRadius: isLarge ? 5 : 3,
+                pointHoverRadius: isLarge ? 7 : 5,
+                fill: true,
+                tension: 0.4
+            }]
+        };
+        
+        // Konfiguracja wykresu
+        const config = {
+            type: 'line',
+            data: chartData,
+            options: {
+                responsive: isLarge ? false : true, // Wyłącz responsywność dla dużego wykresu
+                maintainAspectRatio: false,
+                // Ograniczenia rozmiaru
+                layout: {
+                    padding: {
+                        top: 10,
+                        bottom: 10,
+                        left: 10,
+                        right: 10
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: '#3498db',
+                        borderWidth: 1,
+                        titleFont: {
+                            size: isLarge ? 16 : 14,
+                            weight: 'bold'
+                        },
+                        bodyFont: {
+                            size: isLarge ? 16 : 14
+                        },
+                        padding: isLarge ? 16 : 12,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed.y;
+                                return `Zysk: ${value >= 0 ? '+' : ''}${value.toFixed(2)} USD`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#ffffff',
+                            font: {
+                                size: isLarge ? 12 : 10
+                            }
+                        }
+                    },
+                    y: {
+                        display: true,
+                        position: 'left',
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: '#ffffff',
+                            font: {
+                                size: isLarge ? 12 : 10
+                            },
+                            callback: function(value) {
+                                return `${value >= 0 ? '+' : ''}${value} USD`;
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                },
+                elements: {
+                    point: {
+                        hoverBorderWidth: 2
+                    }
+                }
+            }
+        };
+        
+        // Stwórz wykres
+        canvas.chart = new Chart(canvas, config);
+    }
+    
+    // Funkcja do obsługi tooltipów wykresu - usunięta, bo Chart.js ma wbudowane tooltipy
+
+    // Funkcja do aktualizacji statystyk wykresu zysku dziennego
+    function updatePercentageChartStats(data) {
+        const profits = data.map(d => d.profit);
+        const currentProfit = profits[profits.length - 1];
+        const avgProfit = profits.reduce((sum, val) => sum + val, 0) / profits.length;
+        
+        // Aktualizuj elementy w modalu
+        document.getElementById('percentageCurrentChange').textContent = `${currentProfit >= 0 ? '+' : ''}${currentProfit.toFixed(2)} USD`;
+        document.getElementById('percentageAvgChange').textContent = `${avgProfit >= 0 ? '+' : ''}${avgProfit.toFixed(2)} USD`;
+        
+        // Aktualizuj widget
+        document.getElementById('chart-current-percentage').textContent = `${currentProfit >= 0 ? '+' : ''}${currentProfit.toFixed(2)} USD`;
+        
+        // Kolorowanie wartości
+        const currentEl = document.getElementById('percentageCurrentChange');
+        const avgEl = document.getElementById('percentageAvgChange');
+        const widgetEl = document.getElementById('chart-current-percentage');
+        
+        currentEl.className = currentProfit >= 0 ? 'stat-value positive-amount' : 'stat-value negative-amount';
+        avgEl.className = avgProfit >= 0 ? 'stat-value positive-amount' : 'stat-value negative-amount';
+        widgetEl.className = currentProfit >= 0 ? 'chart-current-value positive-amount' : 'chart-current-value negative-amount';
+    }
+    
+    // Funkcja do obsługi przycisków okresu
+    function setupPeriodButtons() {
+        const periodButtons = document.querySelectorAll('.period-btn');
+        
+        periodButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Usuń aktywną klasę ze wszystkich przycisków
+                periodButtons.forEach(btn => btn.classList.remove('active'));
+                
+                // Dodaj aktywną klasę do klikniętego przycisku
+                this.classList.add('active');
+                
+                // Pobierz okres z data-period
+                const period = parseInt(this.getAttribute('data-period'));
+                
+                // Generuj nowe dane i odśwież wykres
+                const chartData = generatePercentageChartData(period);
+                drawPercentageChart(chartData, 'percentage-chart-large', true);
+                updatePercentageChartStats(chartData);
+            });
+        });
+    }
 });
 
 // --- FUNKCJE DO GENEROWANIA I POBIERANIA CSV ---
@@ -1928,11 +2535,8 @@ window.checkArchiveTransactions = function() {
         ctx.clearRect(0, 0, chartElement.width, chartElement.height);
 
         // Ustawienia wykresu
-        const padding = 40;
-        const chartWidth = chartElement.width - 2 * padding;
-        const chartHeight = chartElement.height - 2 * padding;
-        const barWidth = chartWidth / monthsData.length * 0.6;
-        const barSpacing = chartWidth / monthsData.length * 0.4;
+        const basePadding = 40;
+        const chartHeight = chartElement.height - 2 * basePadding;
 
         // Znajdź maksymalną i minimalną wartość
         const maxProfit = Math.max(...monthsData.map(m => m.profit), 0);
@@ -1940,7 +2544,34 @@ window.checkArchiveTransactions = function() {
         const range = maxProfit - minProfit || 1;
 
         // Oblicz pozycję linii zero
-        const zeroY = padding + chartHeight - (0 - minProfit) / range * chartHeight;
+        const zeroY = basePadding + chartHeight - (0 - minProfit) / range * chartHeight;
+
+        // Oblicz maksymalną szerokość tekstu dla etykiet osi Y
+        ctx.font = '9px Roboto';
+        const yLabels = [];
+        for (let i = 0; i <= 4; i++) {
+            const value = maxProfit - (range / 4) * i;
+            if (value !== 0) {
+                yLabels.push(`${value.toFixed(0)}`);
+            }
+        }
+        
+        // Znajdź najszerszą etykietę
+        let maxLabelWidth = 0;
+        yLabels.forEach(label => {
+            const metrics = ctx.measureText(label);
+            maxLabelWidth = Math.max(maxLabelWidth, metrics.width);
+        });
+        
+        // Dostosuj margines lewy, żeby etykiety nie wychodziły poza kartę
+        const minLeftMargin = maxLabelWidth + 15; // 15px dodatkowego marginesu
+        const leftPadding = Math.max(basePadding, minLeftMargin);
+        const rightPadding = basePadding;
+        
+        // Przelicz szerokość wykresu z dostosowanym marginesem
+        const chartWidth = chartElement.width - leftPadding - rightPadding;
+        const barWidth = chartWidth / monthsData.length * 0.6;
+        const barSpacing = chartWidth / monthsData.length * 0.4;
 
         // Narysuj siatkę
         ctx.strokeStyle = gridColor;
@@ -1949,10 +2580,10 @@ window.checkArchiveTransactions = function() {
         
         // Linie poziome
         for (let i = 0; i <= 4; i++) {
-            const y = padding + (chartHeight / 4) * i;
+            const y = basePadding + (chartHeight / 4) * i;
             ctx.beginPath();
-            ctx.moveTo(padding, y);
-            ctx.lineTo(padding + chartWidth, y);
+            ctx.moveTo(leftPadding, y);
+            ctx.lineTo(leftPadding + chartWidth, y);
             ctx.stroke();
         }
 
@@ -1962,13 +2593,13 @@ window.checkArchiveTransactions = function() {
         ctx.strokeStyle = textColor;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(padding, zeroY);
-        ctx.lineTo(padding + chartWidth, zeroY);
+        ctx.moveTo(leftPadding, zeroY);
+        ctx.lineTo(leftPadding + chartWidth, zeroY);
         ctx.stroke();
 
         // Narysuj słupki
         monthsData.forEach((data, index) => {
-            const x = padding + (chartWidth / monthsData.length) * index + barSpacing / 2;
+            const x = leftPadding + (chartWidth / monthsData.length) * index + barSpacing / 2;
             const barHeight = Math.abs(data.profit) / range * chartHeight;
             const y = data.profit >= 0 ? zeroY - barHeight : zeroY;
             
@@ -1988,7 +2619,7 @@ window.checkArchiveTransactions = function() {
             ctx.fillStyle = textColor;
             ctx.font = '9px Roboto';
             ctx.textAlign = 'center';
-            ctx.fillText(data.month, x + barWidth / 2, padding + chartHeight + 15);
+            ctx.fillText(data.month, x + barWidth / 2, basePadding + chartHeight + 15);
         });
 
         // Dodaj etykiety osi Y
@@ -1998,9 +2629,9 @@ window.checkArchiveTransactions = function() {
         
         for (let i = 0; i <= 4; i++) {
             const value = maxProfit - (range / 4) * i;
-            const y = padding + (chartHeight / 4) * i + 3;
+            const y = basePadding + (chartHeight / 4) * i + 3;
             if (value !== 0) {
-                ctx.fillText(`${value.toFixed(0)}`, padding - 5, y);
+                ctx.fillText(`${value.toFixed(0)}`, leftPadding - 5, y);
             }
         }
     }
@@ -2011,11 +2642,15 @@ window.checkArchiveTransactions = function() {
         const chartElement = document.getElementById('enlarged-monthly-profits-chart');
         if (!chartElement) return;
 
+        // Ustaw rozmiar canvas
+        chartElement.width = 900;
+        chartElement.height = 500;
+
         const ctx = chartElement.getContext('2d');
         const now = new Date();
         const monthsData = [];
         
-        // Przygotuj dane dla ostatnich 12 miesięcy (więcej dla większego wykresu)
+        // Przygotuj dane dla ostatnich 12 miesięcy
         for (let i = 11; i >= 0; i--) {
             const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
             const monthName = date.toLocaleDateString('pl-PL', { month: 'short', year: '2-digit' });
@@ -2055,12 +2690,14 @@ window.checkArchiveTransactions = function() {
         // Wyczyść canvas
         ctx.clearRect(0, 0, chartElement.width, chartElement.height);
 
-        // Ustawienia wykresu (większe marginesy dla większego wykresu)
-        const padding = 60;
-        const chartWidth = chartElement.width - 2 * padding;
-        const chartHeight = chartElement.height - 2 * padding;
-        const barWidth = chartWidth / monthsData.length * 0.7;
-        const barSpacing = chartWidth / monthsData.length * 0.3;
+        // Ustawienia wykresu
+        const topMargin = 60;
+        const bottomMargin = 80;
+        const leftMargin = 120; // Zwiększony margines lewy dla etykiet osi Y
+        const rightMargin = 60;
+        
+        const chartWidth = chartElement.width - leftMargin - rightMargin;
+        const chartHeight = chartElement.height - topMargin - bottomMargin;
 
         // Znajdź maksymalną i minimalną wartość
         const maxProfit = Math.max(...monthsData.map(m => m.profit), 0);
@@ -2068,7 +2705,7 @@ window.checkArchiveTransactions = function() {
         const range = maxProfit - minProfit || 1;
 
         // Oblicz pozycję linii zero
-        const zeroY = padding + chartHeight - (0 - minProfit) / range * chartHeight;
+        const zeroY = topMargin + chartHeight - (0 - minProfit) / range * chartHeight;
 
         // Narysuj siatkę
         ctx.strokeStyle = gridColor;
@@ -2077,10 +2714,10 @@ window.checkArchiveTransactions = function() {
         
         // Linie poziome
         for (let i = 0; i <= 6; i++) {
-            const y = padding + (chartHeight / 6) * i;
+            const y = topMargin + (chartHeight / 6) * i;
             ctx.beginPath();
-            ctx.moveTo(padding, y);
-            ctx.lineTo(padding + chartWidth, y);
+            ctx.moveTo(leftMargin, y);
+            ctx.lineTo(leftMargin + chartWidth, y);
             ctx.stroke();
         }
 
@@ -2090,13 +2727,16 @@ window.checkArchiveTransactions = function() {
         ctx.strokeStyle = textColor;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(padding, zeroY);
-        ctx.lineTo(padding + chartWidth, zeroY);
+        ctx.moveTo(leftMargin, zeroY);
+        ctx.lineTo(leftMargin + chartWidth, zeroY);
         ctx.stroke();
 
         // Narysuj słupki
+        const barWidth = chartWidth / monthsData.length * 0.7;
+        const barSpacing = chartWidth / monthsData.length * 0.3;
+
         monthsData.forEach((data, index) => {
-            const x = padding + (chartWidth / monthsData.length) * index + barSpacing / 2;
+            const x = leftMargin + (chartWidth / monthsData.length) * index + barSpacing / 2;
             const barHeight = Math.abs(data.profit) / range * chartHeight;
             const y = data.profit >= 0 ? zeroY - barHeight : zeroY;
             
@@ -2116,7 +2756,7 @@ window.checkArchiveTransactions = function() {
             ctx.fillStyle = textColor;
             ctx.font = '12px Roboto';
             ctx.textAlign = 'center';
-            ctx.fillText(data.month, x + barWidth / 2, padding + chartHeight + 25);
+            ctx.fillText(data.month, x + barWidth / 2, topMargin + chartHeight + 25);
         });
 
         // Dodaj etykiety osi Y
@@ -2126,15 +2766,15 @@ window.checkArchiveTransactions = function() {
         
         for (let i = 0; i <= 6; i++) {
             const value = maxProfit - (range / 6) * i;
-            const y = padding + (chartHeight / 6) * i + 4;
+            const y = topMargin + (chartHeight / 6) * i + 4;
             if (value !== 0) {
-                ctx.fillText(`${value.toFixed(0)}`, padding - 10, y);
+                ctx.fillText(`${value.toFixed(0)}`, leftMargin - 10, y);
             }
         }
 
         // Dodaj tytuł osi Y
         ctx.save();
-        ctx.translate(25, padding + chartHeight / 2);
+        ctx.translate(30, topMargin + chartHeight / 2);
         ctx.rotate(-Math.PI / 2);
         ctx.textAlign = 'center';
         ctx.font = '14px Roboto';
@@ -2145,5 +2785,5 @@ window.checkArchiveTransactions = function() {
         ctx.fillStyle = textColor;
         ctx.font = '14px Roboto';
         ctx.textAlign = 'center';
-        ctx.fillText('Miesiąc', padding + chartWidth / 2, chartElement.height - 10);
+        ctx.fillText('Miesiąc', leftMargin + chartWidth / 2, chartElement.height - 20);
     }

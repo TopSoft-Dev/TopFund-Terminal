@@ -1432,6 +1432,15 @@ body.dark-mode .details-content {
     color: var(--primary-color);
 }
 
+.stat-value.positive-amount {
+    color: var(--secondary-color);
+}
+
+/* Style dla wartości "Pozostało do celu" w trackerze */
+#trackerRemaining {
+    color: var(--secondary-color) !important;
+}
+
 /* Responsywność dla modala statystyk */
 @media (max-width: 768px) {
     .stats-grid {
@@ -1456,8 +1465,6 @@ body.dark-mode .details-content {
         gap: 5px;
     }
 }
-
-/* Zapewnienie, że formularze w modalach nie będą się rozlewać */
 
 /* Style dla modala z większym wykresem */
 .enlarged-chart-modal {
@@ -1484,6 +1491,90 @@ body.dark-mode .details-content {
     max-height: 100%;
     background-color: var(--card-background);
     border-radius: 4px;
+    overflow: hidden;
+    display: block;
+}
+
+/* Style dla wykresów Chart.js */
+#percentage-chart,
+#percentage-chart-large {
+    background-color: var(--card-background);
+    border-radius: 4px;
+    padding: 10px;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+}
+
+/* Ograniczenia rozmiaru dla dużego wykresu */
+#percentage-chart-large {
+    max-width: 800px;
+    max-height: 400px;
+    width: 800px;
+    height: 400px;
+}
+
+/* Kontener wykresu w modalu */
+#percentageChartModal .chart-container-large {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: var(--card-background);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+/* Ograniczenia rozmiaru modala z wykresem */
+#percentageChartModal .modal-content {
+    max-width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* Style dla tooltipów Chart.js */
+.chartjs-tooltip {
+    background: rgba(0, 0, 0, 0.9) !important;
+    color: white !important;
+    border-radius: 8px !important;
+    padding: 12px 16px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Responsywność dla wykresów */
+@media (max-width: 768px) {
+    #percentage-chart,
+    #percentage-chart-large {
+        padding: 5px;
+    }
+    
+    /* Responsywność dla modala z wykresem */
+    #percentageChartModal .chart-container-large {
+        padding: 10px;
+        max-width: 100%;
+    }
+    
+    #percentage-chart-large {
+        width: 100%;
+        height: 250px;
+        max-width: 100%;
+        max-height: 250px;
+    }
+    
+    /* Większe tooltipy na tabletach */
+    .chartjs-tooltip {
+        padding: 16px 20px !important;
+        font-size: 16px !important;
+        border-radius: 10px !important;
+    }
 }
 
 /* Responsywność dla modala z większym wykresem */
@@ -1518,6 +1609,65 @@ body.dark-mode .details-content {
     
     #enlarged-chart-container {
         padding: 5px;
+    }
+    
+    /* Lepsze proporcje dla bardzo małych ekranów */
+    #percentage-chart-large {
+        width: 100%;
+        height: 200px;
+        max-width: 100%;
+        max-height: 200px;
+    }
+    
+    #percentageChartModal .chart-container-large {
+        padding: 10px;
+    }
+    
+    /* Jeszcze większe tooltipy na telefonach */
+    .chartjs-tooltip {
+        padding: 20px 24px !important;
+        font-size: 18px !important;
+        border-radius: 12px !important;
+        min-width: 200px !important;
+    }
+    
+    /* Większy przycisk "Dodaj transakcję" na telefonach */
+    #add-transaction-form button[type="submit"] {
+        padding: 15px 20px;
+        font-size: 16px;
+        font-weight: 600;
+        height: auto;
+        min-height: 50px;
+        background: linear-gradient(135deg, var(--primary-color), #2980b9);
+        box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        border: none;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    
+    #add-transaction-form button[type="submit"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(52, 152, 219, 0.4);
+    }
+    
+    /* Bardziej przykuwające wzrok pole kwoty */
+    #transaction-amount {
+        padding: 15px;
+        font-size: 18px;
+        font-weight: 600;
+        border: 2px solid var(--primary-color);
+        border-radius: 8px;
+        background: linear-gradient(135deg, rgba(52, 152, 219, 0.05), rgba(52, 152, 219, 0.1));
+        box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+        transition: all 0.3s ease;
+    }
+    
+    #transaction-amount:focus {
+        border-color: #2980b9;
+        box-shadow: 0 4px 16px rgba(52, 152, 219, 0.3);
+        background: linear-gradient(135deg, rgba(52, 152, 219, 0.1), rgba(52, 152, 219, 0.15));
+        transform: scale(1.02);
+        outline: none;
     }
 }
 
@@ -1844,4 +1994,341 @@ body.dark-mode .details-content {
 .modal-content {
     scrollbar-width: thin;
     scrollbar-color: var(--primary-color) transparent;
+}
+
+/* Style dla sekcji widgetów */
+#widgets-section {
+    display: none;
+    grid-column: 1 / -1; /* Rozszerz na całą szerokość */
+}
+
+#widgets-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.widget-card {
+    background: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px var(--shadow-color);
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.6s ease forwards;
+}
+
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.widget-card:hover {
+    border-color: #f39c12;
+    box-shadow: 0 4px 8px var(--shadow-color);
+}
+
+.widget-card:active {
+    transform: translateY(0);
+}
+
+.widget-card h3 {
+    margin: 0 0 15px 0;
+    color: var(--header-color);
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.progress-container {
+    margin-bottom: 15px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background-color: var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #e67e22, #f39c12);
+    border-radius: 10px;
+    transition: width 1s ease-out;
+    position: relative;
+    overflow: hidden;
+    width: 0%;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    color: var(--text-color);
+}
+
+.progress-percentage {
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.progress-target {
+    opacity: 0.8;
+}
+
+.progress-details {
+    text-align: center;
+}
+
+.progress-text {
+    margin: 0;
+    font-size: 16px;
+    color: var(--text-color);
+}
+
+.progress-amount {
+    font-weight: bold;
+    color: var(--secondary-color);
+}
+
+/* Style dla nowego widgetu wykresu procentowego */
+.chart-container-small {
+    width: 100%;
+    height: 150px;
+    margin-bottom: 10px;
+    background-color: var(--background-color);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.chart-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    color: var(--text-color);
+}
+
+.chart-current-value {
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.chart-period {
+    opacity: 0.8;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.chart-period-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.period-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-background);
+    color: var(--text-color);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.period-btn:hover {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.period-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.chart-container-large {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    background-color: var(--background-color);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+/* Tooltip dla wykresu */
+.chart-tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.chart-tooltip.show {
+    opacity: 1;
+}
+
+body.dark-mode .chart-tooltip {
+    background: rgba(255, 255, 255, 0.95);
+    color: #333;
+}
+
+body.dark-mode .progress-fill {
+    background: linear-gradient(90deg, #d35400, #e67e22);
+}
+
+body.dark-mode .progress-bar {
+    background-color: #404040;
+}
+
+body.dark-mode .widget-card {
+    background: var(--card-background);
+    border-color: var(--border-color);
+}
+
+body.dark-mode .progress-fill::after {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+}
+
+@media (max-width: 768px) {
+    .widget-card {
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .widget-card h3 {
+        font-size: 16px;
+    }
+    
+    .progress-bar {
+        height: 16px;
+    }
+    
+    .progress-info {
+        font-size: 12px;
+    }
+    
+    .progress-text {
+        font-size: 14px;
+    }
+    
+    .chart-container-small {
+        height: 120px;
+    }
+    
+    .chart-info {
+        font-size: 12px;
+    }
+    
+    .chart-container-large {
+        padding: 15px;
+    }
+    
+    #widgets-container {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .chart-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+    
+    .chart-period-buttons {
+        gap: 8px;
+    }
+    
+    .period-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    /* Dodatkowe style dla bardzo małych ekranów */
+    @media (max-width: 480px) {
+        .chart-container-small {
+            height: 100px;
+        }
+        
+        .chart-info {
+            font-size: 11px;
+        }
+        
+        .chart-container-large {
+            padding: 10px;
+        }
+        
+        .period-btn {
+            padding: 5px 10px;
+            font-size: 11px;
+        }
+    }
+}
+
+@media (max-width: 480px) {
+    .widget-card {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .widget-card h3 {
+        font-size: 15px;
+        margin-bottom: 12px;
+    }
+    
+    .progress-bar {
+        height: 14px;
+    }
+    
+    .progress-info {
+        font-size: 11px;
+    }
+    
+    .progress-text {
+        font-size: 13px;
+    }
 }

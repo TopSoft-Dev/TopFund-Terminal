@@ -599,7 +599,15 @@ footer {
     border-radius: 12px;
     position: relative;
     box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    margin: auto; /* Dodane: centrowanie modala */
+    margin: 5% auto; /* Dodane: centrowanie modala i margines od góry */
+    max-height: 90vh; /* Dodane: maksymalna wysokość */
+    overflow-y: auto; /* Dodane: przewijanie w razie potrzeby */
+}
+
+.share-buttons {
+    position: absolute;
+    top: 20px;
+    right: 80px;
 }
 
 .login-modal-content {
@@ -1045,6 +1053,10 @@ body.dark-mode .details-content {
     .card-header-buttons {
         align-self: flex-end;
     }
+
+    .share-buttons {
+        right: 90px; /* Przesunięcie przycisków udostępniania w lewo */
+    }
 }
 
 /* Bardzo małe telefony */
@@ -1235,8 +1247,17 @@ body.dark-mode .details-content {
 /* Responsywność dla modali */
 @media (max-width: 600px) {
     .modal-content {
-        width: 90%;
-        padding: 20px; /* Zwiększony padding dla lepszego wyglądu */
+        width: 95%;
+        padding: 20px;
+        margin: 5% auto; /* Dodaje margines na górze i na dole */
+        max-height: 90vh; /* Maksymalna wysokość okna */
+        overflow-y: auto; /* Włącza przewijanie w razie potrzeby */
+        box-sizing: border-box; /* Kluczowa poprawka: padding wliczony w szerokość */
+    }
+
+    .share-buttons {
+        top: 15px;
+        right: 75px; /* Zwiększony odstęp od prawej krawędzi */
     }
 
     .modal-buttons {
@@ -1772,4 +1793,38 @@ body.dark-mode .details-content {
     .share-message {
         font-size: 14px;
     }
+}
+
+/* --- STYLIZACJA PASKÓW PRZEWIJANIA (Z EFEKTEM CHOWANIA) --- */
+
+/* Dla przeglądarek WebKit (Chrome, Safari, Edge) */
+.modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0); /* Domyślnie całkowicie przezroczysty */
+    border-radius: 10px;
+    transition: background-color 0.3s ease-in-out;
+}
+
+/* Pasek staje się widoczny, gdy kursor jest nad całym modalem */
+.modal-content:hover::-webkit-scrollbar-thumb {
+    background-color: var(--primary-color);
+    border: 2px solid var(--card-background);
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+    background-color: #2980b9;
+}
+
+/* Dla Firefox - efekt chowania jest trudny do osiągnięcia w czystym CSS. */
+/* Używamy `scrollbar-width: thin` jako kompromis, aby był mniej inwazyjny. */
+.modal-content {
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) transparent;
 }

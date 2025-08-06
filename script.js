@@ -815,6 +815,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <button class="toggle-month-btn" data-month="${monthKey}">+</button>
                             <span class="month-label">${monthData.label}</span>
                             <span class="month-transaction-count">(${monthData.transactions.length} transakcji <span class="${profitClass}">${profitText} USD</span>)</span>
+                            <button class="download-month-btn" data-month-key="${monthKey}" title="Pobierz CSV">Pobierz .csv</button>
                         </div>
                     </td>
                 `;
@@ -943,6 +944,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         row.style.display = isOpen ? 'none' : '';
                     });
                     this.textContent = isOpen ? '+' : '-';
+                });
+            });
+
+            // Obsługa pobierania CSV dla miesiąca
+            transactionsHistoryBody.querySelectorAll('.download-month-btn').forEach(btn => {
+                btn.addEventListener('click', function(event) {
+                    event.stopPropagation();
+                    const monthKey = this.getAttribute('data-month-key');
+                    const monthData = monthlyGroups[monthKey];
+                    if (monthData && monthData.transactions) {
+                        const csvContent = generateCSV(monthData.transactions, loggedInUser);
+                        downloadCSV(csvContent, `historia-${monthData.label}.csv`);
+                    }
                 });
             });
             return; // Nie wyświetlaj już poniżej, archiwum już obsłużone
@@ -1737,6 +1751,63 @@ document.addEventListener('DOMContentLoaded', () => {
         openShareStatsModal('total');
     });
 });
+
+// --- FUNKCJE DO GENEROWANIA I POBIERANIA CSV ---
+function generateCSV(transactions, currentUser) {
+    const isTopciu = currentUser && currentUser.name === 'Topciu';
+    const headers = isTopciu 
+        ? ['Data', 'Typ', 'Opis', 'Kwota transakcji', 'Saldo po transakcji', 'Uczestnik', 'Zysk/Strata uczestnika', 'Prowizja', 'Nowe saldo uczestnika']
+        : ['Data', 'Typ', 'Opis', 'Twoja zmiana', 'Twoje saldo po'];
+
+    let csvRows = [headers.join(',')];
+
+    transactions.forEach(transaction => {
+        const date = new Date(transaction.createdAt.toDate()).toLocaleString('pl-PL');
+        const type = transaction.type;
+
+        if (isTopciu) {
+            // Logika dla Topcia - pełne dane
+            if (type === 'trade' && transaction.details) {
+                const tradeAmount = transaction.amount.toFixed(2);
+                const totalBalanceAfter = transaction.totalBalanceAfter ? transaction.totalBalanceAfter.toFixed(2) : 'N/A';
+                csvRows.push([date, type, 'Zagranie grupowe', tradeAmount, totalBalanceAfter, '', '', '', ''].join(','));
+
+                for (const userId in transaction.details) {
+                    const detail = transaction.details[userId];
+                    csvRows.push(['', '', '', '', '', detail.name, detail.profitLossShare.toFixed(2), (detail.commissionPaid || 0).toFixed(2), detail.newBalance.toFixed(2)].join(','));
+                }
+            } else {
+                csvRows.push([date, type, transaction.userName || 'N/A', transaction.amount.toFixed(2), transaction.balanceAfter ? transaction.balanceAfter.toFixed(2) : 'N/A', '', '', '', ''].join(','));
+            }
+        } else {
+            // Logika dla zwykłego użytkownika - tylko jego dane
+            if (type === 'trade' && transaction.details) {
+                const userDetail = transaction.details[currentUser.id];
+                if (userDetail) {
+                    const userProfit = userDetail.profitLossShare - (userDetail.commissionPaid || 0);
+                    csvRows.push([date, type, 'Zagranie', userProfit.toFixed(2), userDetail.newBalance.toFixed(2)].join(','));
+                }
+            } else if ((type === 'deposit' || type === 'withdrawal') && transaction.userId === currentUser.id) {
+                const amount = type === 'deposit' ? transaction.amount : -transaction.amount;
+                csvRows.push([date, type, type, amount.toFixed(2), transaction.balanceAfter.toFixed(2)].join(','));
+            }
+        }
+    });
+
+    return csvRows.join('\n');
+}
+
+function downloadCSV(csvContent, fileName) {
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
 
 // --- Funkcja testowa do dodania starej transakcji ---
 // Można ją wywołać w konsoli przez: addTestTransaction()

@@ -1149,6 +1149,23 @@ body.dark-mode .details-content {
     }
 }
 
+.download-month-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 6px; /* Zaokrąglone rogi */
+    padding: 5px 10px; /* Dopasowanie do tekstu */
+    font-size: 12px; /* Mniejsza czcionka */
+    font-weight: 700;
+    cursor: pointer;
+    margin-left: auto; /* Przesuwa przycisk na prawo */
+    transition: background-color 0.3s;
+}
+
+.download-month-btn:hover {
+    background-color: #2980b9;
+}
+
 /* =============================================== */
 /* --- POPRAWKI DLA URZĄDZEŃ MOBILNYCH (v2) --- */
 /* =============================================== */

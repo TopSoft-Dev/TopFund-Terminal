@@ -1503,16 +1503,14 @@ body.dark-mode .details-content {
     padding: 10px;
     max-width: 100%;
     max-height: 100%;
-    width: auto;
+    width: 100%;
     height: auto;
 }
 
 /* Ograniczenia rozmiaru dla dużego wykresu */
 #percentage-chart-large {
-    max-width: 800px;
-    max-height: 400px;
-    width: 800px;
-    height: 400px;
+    max-width: 100%;
+    height: auto;
 }
 
 /* Kontener wykresu w modalu */
@@ -1530,11 +1528,89 @@ body.dark-mode .details-content {
     overflow: hidden;
 }
 
+/* Powiększony wykres Ekstrapolacji – wykorzystaj te same style kontenera */
+#extrapolationChartModal .chart-container-large {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: var(--card-background);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+/* Rozmiar płótna dużego wykresu Ekstrapolacji */
+#extrapolation-chart-large {
+    background-color: var(--card-background);
+    border-radius: 4px;
+    padding: 10px;
+    max-width: 100%;
+    width: 800px;
+    height: 400px;
+}
+
+/* Ograniczenia rozmiaru modala z wykresem Ekstrapolacji */
+#extrapolationChartModal .modal-content {
+    max-width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+#extrapolationChartModal .extrapolation-summary {
+    margin: 10px 0 0 0;
+    text-align: center;
+    color: var(--text-color);
+}
+
 /* Ograniczenia rozmiaru modala z wykresem */
 #percentageChartModal .modal-content {
     max-width: 900px;
     max-height: 90vh;
     overflow-y: auto;
+}
+
+/* Desktopowy układ bez scrolla dla modala Wykres zysku dziennego */
+@media (min-width: 1024px) {
+    #percentageChartModal .modal-content {
+        max-width: 1200px;
+    }
+
+    #percentageChartContent {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) 360px;
+        gap: 32px;
+        align-items: start;
+    }
+
+    /* Schowaj separator na desktopie */
+    #percentageChartContent .stats-separator {
+        display: none;
+    }
+
+    /* Ustaw kolumny jawnie: lewa (wykres), prawa (statystyki) */
+    #percentageChartContent .stats-section:first-of-type {
+        grid-column: 1;
+    }
+    #percentageChartContent .stats-section:last-of-type {
+        grid-column: 2;
+        align-self: start;
+    }
+
+    /* Zmniejsz padding kontenera wykresu, aby oszczędzić wysokość */
+    #percentageChartModal .chart-container-large {
+        padding: 12px;
+        width: 100%;
+        max-width: none;
+    }
+
+    /* Wysokość płótna wykresu dla desktopu – kompaktowa bez scrolla */
+    #percentage-chart-large {
+        height: 320px !important;
+    }
 }
 
 /* Style dla tooltipów Chart.js */
@@ -2022,6 +2098,51 @@ body.dark-mode .details-content {
     animation: fadeInUp 0.6s ease forwards;
 }
 
+/* Kompaktowa wersja trackera, by zmieścić dodatkowy widget */
+#monthly-tracker-widget {
+    padding: 16px;
+}
+#monthly-tracker-widget .progress-bar {
+    height: 16px;
+}
+#monthly-tracker-widget .progress-info {
+    font-size: 13px;
+}
+#monthly-tracker-widget h3 {
+    margin-bottom: 10px;
+}
+
+/* Styl „Ekstrapolacji” */
+#extrapolation-widget .extrapolation-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    margin-bottom: 8px;
+    color: var(--text-color);
+}
+.extrapolation-green {
+    color: var(--secondary-color);
+}
+#extrapolation-widget .chart-container-small {
+    height: 150px;
+    position: relative;
+    overflow: hidden;
+}
+
+#extrapolation-chart {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+@media (max-width: 768px) {
+    #extrapolation-widget .chart-container-small {
+        height: 120px;
+    }
+}
+
 @keyframes fadeInUp {
     to {
         opacity: 1;
@@ -2306,6 +2427,26 @@ body.dark-mode .progress-fill::after {
             padding: 5px 10px;
             font-size: 11px;
         }
+    }
+}
+
+/* Układ 5-polowy na desktopie: 1 + 2 + 2 w jednym wierszu */
+@media (min-width: 1024px) {
+    #widgets-container {
+        grid-template-columns: repeat(5, 1fr);
+        align-items: stretch;
+    }
+
+    #monthly-tracker-widget {
+        grid-column: span 1;
+    }
+
+    #extrapolation-widget {
+        grid-column: span 2;
+    }
+
+    #percentage-chart-widget {
+        grid-column: span 2;
     }
 }
 

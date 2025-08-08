@@ -131,6 +131,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let cachedTransactions = [];
     let isArchiveView = false;
     let loggedInUser = null; // Przechowuje dane zalogowanego użytkownika
+    // Instancja wykresu ekstrapolacji i sygnatura ostatniego stanu, aby uniknąć ciągłego prze-rysowywania
+    let extrapolationChart = null;
+    let lastExtrapolationSignature = null;
     const deleteUserModal = document.getElementById('deleteUserModal');
     const closeDeleteUserModalBtn = document.getElementById('closeDeleteUserModalBtn');
     const deleteUserName = document.getElementById('deleteUserName');
@@ -1707,6 +1710,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 targetAmount: balanceAtMonthStart * targetPercentage / 100,
                 daysLeft: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() - new Date().getDate()
             };
+
+            // Zaktualizuj widget Ekstrapolacji, który korzysta z trackerData
+            updateExtrapolationWidget();
         } else {
             console.log('Widget: Nie znaleziono elementów DOM');
         }
@@ -1841,6 +1847,16 @@ document.addEventListener('DOMContentLoaded', () => {
         percentageChartModal.style.display = 'none';
         enableBodyScroll();
     });
+
+    // Obsługa modala powiększonej Ekstrapolacji
+    const extrapolationChartModal = document.getElementById('extrapolationChartModal');
+    const closeExtrapolationChartModalBtn = document.getElementById('closeExtrapolationChartModalBtn');
+    if (closeExtrapolationChartModalBtn && extrapolationChartModal) {
+        closeExtrapolationChartModalBtn.addEventListener('click', () => {
+            extrapolationChartModal.style.display = 'none';
+            enableBodyScroll();
+        });
+    }
 
     // Obsługa ukrycia kwoty w karcie udostępniania
     hideAmountCheckbox.addEventListener('change', function() {
@@ -2087,15 +2103,24 @@ document.addEventListener('DOMContentLoaded', () => {
         openShareStatsModal('total');
     });
 
-    // Obsługa kliknięcia na widget tracker
+    // Obsługa kliknięcia na widgety
     document.addEventListener('click', function(event) {
         const widgetCard = event.target.closest('.widget-card');
         if (widgetCard && loggedInUser && loggedInUser.name === 'Topciu') {
-            // Sprawdź czy to widget wykresu procentowego
             if (widgetCard.id === 'percentage-chart-widget') {
+                // Wykres zysku dziennego
                 openPercentageChartModal();
+            } else if (widgetCard.id === 'extrapolation-widget') {
+                // Powiększony wykres Ekstrapolacji
+                const modal = document.getElementById('extrapolationChartModal');
+                if (modal) {
+                    drawExtrapolationLarge();
+                    modal.style.display = 'flex';
+                    disableBodyScroll();
+                }
             } else {
-            openTrackerDetailsModal();
+                // Domyślnie: szczegóły trackera
+                openTrackerDetailsModal();
             }
         }
     });
@@ -2186,16 +2211,15 @@ document.addEventListener('DOMContentLoaded', () => {
             canvas.chart.destroy();
         }
         
-        // Ustaw stały rozmiar dla dużego wykresu
+        // Ustaw rozmiar tylko na mobile; na desktopie pozwól CSS kontrolować rozmiar
         if (isLarge) {
-            // Sprawdź czy to urządzenie mobilne
             const isMobile = window.innerWidth <= 768;
             if (isMobile) {
-                canvas.width = window.innerWidth - 40; // Odejmij padding
-                canvas.height = 250; // Mniejsza wysokość na mobile
+                canvas.width = window.innerWidth - 40;
+                canvas.height = 250;
             } else {
-                canvas.width = 800;
-                canvas.height = 400;
+                canvas.removeAttribute('width');
+                canvas.removeAttribute('height');
             }
         }
         
@@ -2222,7 +2246,7 @@ document.addEventListener('DOMContentLoaded', () => {
             type: 'line',
             data: chartData,
             options: {
-                responsive: isLarge ? false : true, // Wyłącz responsywność dla dużego wykresu
+                responsive: true,
                 maintainAspectRatio: false,
                 // Ograniczenia rozmiaru
                 layout: {
@@ -2333,6 +2357,210 @@ document.addEventListener('DOMContentLoaded', () => {
         currentEl.className = currentProfit >= 0 ? 'stat-value positive-amount' : 'stat-value negative-amount';
         avgEl.className = avgProfit >= 0 ? 'stat-value positive-amount' : 'stat-value negative-amount';
         widgetEl.className = currentProfit >= 0 ? 'chart-current-value positive-amount' : 'chart-current-value negative-amount';
+    }
+
+    // Rysowanie dużego wykresu ekstrapolacji
+    async function drawExtrapolationLarge() {
+        const canvas = document.getElementById('extrapolation-chart-large');
+        if (!canvas) return;
+        const monthlyRate = getCurrentMonthlyRate();
+        const base = getCurrentTotalBalanceValue();
+        if (base <= 0) return;
+
+        // Dane do 2050 (tak jak w małym, ale bez limitu punktów)
+        const now = new Date();
+        const end = new Date(2050, 11, 31);
+        let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth()) + 1;
+        months = Math.max(months, 0);
+        const labels = [];
+        const values = [];
+        let value = base;
+        for (let i = 0; i <= months; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+            labels.push(d.toLocaleDateString('pl-PL', { month: '2-digit', year: '2-digit' }));
+            if (i > 0) value = value * (1 + monthlyRate);
+            values.push(value);
+        }
+
+        // Uzupełnij podsumowanie (USD + PLN)
+        const finalUsdNumEl = document.getElementById('extrapolation-final-usd-num');
+        const finalPlnNumEl = document.getElementById('extrapolation-final-pln-num');
+        if (finalUsdNumEl) finalUsdNumEl.textContent = `${value.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        if (finalPlnNumEl) {
+            const pln = await convertUsdToPln(value);
+            finalPlnNumEl.textContent = `${pln.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+
+        if (canvas.chart) canvas.chart.destroy();
+        canvas.chart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Prognoza wartości (USD)',
+                    data: values,
+                    borderColor: '#27ae60',
+                    backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                    borderWidth: 3,
+                    pointRadius: 0,
+                    tension: 0.2,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: false,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { maxTicksLimit: 12, color: '#ffffff' } },
+                    y: { grid: { color: 'rgba(255,255,255,0.15)' }, ticks: { color: '#ffffff', callback: (v) => v.toLocaleString('pl-PL') + ' USD' } }
+                }
+            }
+        });
+    }
+
+    // --- WIDGET: EKSTRAPOLACJA ---
+    function parseCurrencyToNumber(text) {
+        if (!text) return 0;
+        // Usuń wszystko poza cyframi, kropką, przecinkiem i znakiem minus
+        const cleaned = text.replace(/[^0-9,.-]/g, '').replace(/\s/g, '');
+        // Zamień przecinek na kropkę, jeśli występuje
+        const normalized = cleaned.replace(',', '.');
+        const value = parseFloat(normalized);
+        return isNaN(value) ? 0 : value;
+    }
+
+    function getCurrentTotalBalanceValue() {
+        try {
+            if (!totalBalanceElement) return 0;
+            return parseCurrencyToNumber(totalBalanceElement.textContent);
+        } catch (e) {
+            return 0;
+        }
+    }
+
+    function getCurrentMonthlyRate() {
+        // Źródło: trackerData.currentProgress (procent miesięczny Topcia względem salda na początek miesiąca)
+        if (window.trackerData && typeof window.trackerData.currentProgress === 'number') {
+            return window.trackerData.currentProgress / 100; // jako ułamek
+        }
+        return 0;
+    }
+
+    function updateExtrapolationWidget() {
+        const widgetCard = document.getElementById('extrapolation-widget');
+        const rateEl = document.getElementById('extrapolation-monthly-rate');
+        const finalEl = document.getElementById('extrapolation-final-value');
+        const canvas = document.getElementById('extrapolation-chart');
+        if (!widgetCard || !rateEl || !finalEl || !canvas) return;
+
+        const monthlyRate = getCurrentMonthlyRate();
+        rateEl.textContent = `${monthlyRate >= 0 ? '+' : ''}${(monthlyRate * 100).toFixed(1)}%`;
+
+        const base = getCurrentTotalBalanceValue();
+        // Zabezpieczenie: jeżeli nic się nie zmieniło, nie renderuj ponownie
+        const signature = `${base}|${monthlyRate.toFixed(6)}`;
+        if (signature === lastExtrapolationSignature && extrapolationChart) {
+            return;
+        }
+        lastExtrapolationSignature = signature;
+        if (base <= 0) {
+            finalEl.textContent = '—';
+            if (extrapolationChart) { extrapolationChart.destroy(); extrapolationChart = null; }
+            return;
+        }
+
+        // Wylicz liczbę miesięcy do grudnia 2050 włącznie
+        const now = new Date();
+        const end = new Date(2050, 11, 31);
+        let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth()) + 1;
+        months = Math.max(months, 0);
+
+        const labels = [];
+        const values = [];
+        let value = base;
+        for (let i = 0; i <= months; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+            labels.push(d.toLocaleDateString('pl-PL', { month: '2-digit', year: '2-digit' }));
+            if (i > 0) {
+                value = value * (1 + monthlyRate);
+            }
+            values.push(value);
+        }
+
+        // Aktualizuj tekst prognozy (ostatnia wartość) – format z separatorami tysięcy
+        const finalValue = values[values.length - 1];
+        const finalNum = finalValue.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        finalEl.textContent = finalNum;
+
+        // Rysuj wykres
+        if (extrapolationChart) {
+            extrapolationChart.destroy();
+            extrapolationChart = null;
+        }
+        const config = {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Prognoza wartości (USD)',
+                    data: values,
+                    borderColor: '#27ae60',
+                    backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(ctx) {
+                                const num = ctx.parsed.y.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                return ` ${num} USD`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { maxTicksLimit: 8 }
+                    },
+                    y: {
+                        grid: { color: 'rgba(0,0,0,0.08)' },
+                        ticks: {
+                            callback: function(value) { return value.toLocaleString('pl-PL') + ' USD'; }
+                        }
+                    }
+                }
+            }
+        };
+        extrapolationChart = new Chart(canvas, config);
+    }
+
+    // Prosty przelicznik USD->PLN z publicznego API
+    async function convertUsdToPln(amountUsd) {
+        try {
+            const res = await fetch('https://api.exchangerate.host/latest?base=USD&symbols=PLN');
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            const rate = data && data.rates && data.rates.PLN ? data.rates.PLN : 4.0;
+            return amountUsd * rate;
+        } catch (e) {
+            console.warn('Błąd pobierania kursu USD/PLN, używam domyślnego 4.0', e);
+            return amountUsd * 4.0;
+        }
     }
     
     // Funkcja do obsługi przycisków okresu

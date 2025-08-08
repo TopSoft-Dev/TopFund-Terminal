@@ -116,7 +116,7 @@
         <section id="widgets-section" class="card" style="display: none;">
             <h2>Widgety</h2>
             <div id="widgets-container">
-                <div class="widget-card">
+                <div class="widget-card" id="monthly-tracker-widget">
                     <h3>Miesięczny tracker</h3>
                     <div class="progress-container">
                         <div class="progress-bar">
@@ -128,6 +128,18 @@
                         </div>
                     </div>
 
+                </div>
+
+                <!-- Nowy widget: Ekstrapolacja -->
+                <div class="widget-card" id="extrapolation-widget">
+                    <h3>Ekstrapolacja</h3>
+                    <div class="extrapolation-info">
+                        <span>Mies. wynik: <strong id="extrapolation-monthly-rate">0.0%</strong></span>
+                        <span>Prognoza: <strong><span id="extrapolation-final-value" class="extrapolation-green">0.00</span> USD</strong></span>
+                    </div>
+                    <div class="chart-container-small">
+                        <canvas id="extrapolation-chart" width="300" height="150"></canvas>
+                    </div>
                 </div>
                 
                 <div class="widget-card" id="percentage-chart-widget">
@@ -364,6 +376,22 @@
                     <input type="checkbox" id="hideAmountCheckbox">
                     <span>Ukryj kwotę</span>
                 </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Powiększony wykres Ekstrapolacji -->
+    <div id="extrapolationChartModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeExtrapolationChartModalBtn">&times;</span>
+            <div class="modal-header">
+                <h2>Ekstrapolacja</h2>
+            </div>
+            <div class="extrapolation-summary">
+                <span>Końcowo: <strong><span class="extrapolation-green" id="extrapolation-final-usd-num">0,00</span> USD</strong> • <strong><span class="extrapolation-green" id="extrapolation-final-pln-num">0,00</span> PLN</strong></span>
+            </div>
+            <div class="chart-container-large">
+                <canvas id="extrapolation-chart-large" width="800" height="400"></canvas>
             </div>
         </div>
     </div>

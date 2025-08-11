@@ -73,10 +73,29 @@
         </section>
 
         <section id="monthly-profits-section" class="card" style="display: none;">
-            <h2>Wykres</h2>
-            <div id="chart-container">
-                <canvas id="monthly-profits-chart" width="400" height="200"></canvas>
+            <div class="card-header">
+                <h2>Widgety</h2>
+                <button id="toggleUserWidgetsBtn" class="circle-btn add-btn" title="Rozwiń/Zwiń">+</button>
             </div>
+            <div id="user-widgets-row" class="user-widgets-row" style="display: none;">
+                <div class="widget-card" id="user-monthly-bar-widget">
+                    <h3>Miesięczny zysk</h3>
+                    <div id="chart-container">
+                        <canvas id="monthly-profits-chart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+                <div class="widget-card" id="user-extrapolation-widget">
+                    <h3>Ekstrapolacja</h3>
+                    <div class="extrapolation-info">
+                        <span>Mies. wynik: <strong id="user-extrapolation-monthly-rate">0.0%</strong></span>
+                        <span>Prognoza: <strong><span id="user-extrapolation-final-value" class="extrapolation-green">0.00</span> USD</strong></span>
+                    </div>
+                    <div class="chart-container-small">
+                        <canvas id="user-extrapolation-chart" width="300" height="150"></canvas>
+                    </div>
+                </div>
+            </div>
+            
         </section>
 
         <section id="summary-section" class="card">
@@ -143,13 +162,12 @@
                 </div>
                 
                 <div class="widget-card" id="percentage-chart-widget">
-                    <h3>Wykres zysku dziennego</h3>
-                    <div class="chart-container-small">
-                        <canvas id="percentage-chart" width="300" height="150"></canvas>
+                    <h3>Zyski miesięczne</h3>
+                    <div class="chart-mini-header">
+                        <span class="chart-period">Ostatnie 6 mies.</span>
                     </div>
-                    <div class="chart-info">
-                        <span class="chart-current-value" id="chart-current-percentage">0.00 USD</span>
-                        <span class="chart-period">Ostatnie 7 dni</span>
+                    <div class="chart-container-small">
+                        <canvas id="percentage-chart" width="300" height="150" title="Kliknij, aby powiększyć miesięczny wykres"></canvas>
                     </div>
                 </div>
             </div>
@@ -385,7 +403,7 @@
         <div class="modal-content">
             <span class="close-button" id="closeExtrapolationChartModalBtn">&times;</span>
             <div class="modal-header">
-                <h2>Ekstrapolacja</h2>
+                <h2>Ekstrapolacja - szczegółowy wykres</h2>
             </div>
             <div class="extrapolation-summary">
                 <span>Końcowo: <strong><span class="extrapolation-green" id="extrapolation-final-usd-num">0,00</span> USD</strong> • <strong><span class="extrapolation-green" id="extrapolation-final-pln-num">0,00</span> PLN</strong></span>

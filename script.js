@@ -211,6 +211,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         } else {
                             console.log('Widget: BŁĄD - Nie znaleziono sekcji widgetów!');
                         }
+                        // Upewnij się, że Topciu nie używa layoutu non-topciu
+                        document.body.classList.remove('non-topciu-layout');
                         
                         // Natychmiastowe sprawdzenie elementów
                         const progressFill = document.getElementById('monthly-progress-fill');
@@ -229,11 +231,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 if (progressFill && progressPercentageEl) {
                                     console.log('Widget: Elementy znalezione po opóźnieniu - aktualizuję widget');
                                     updateMonthlyProgressWidget(cachedTransactions, loggedInUser);
-                            
-                            // Automatycznie wczytaj widget wykresu zysku dziennego
-                            const chartData = generatePercentageChartData(7);
-                            drawPercentageChart(chartData, 'percentage-chart');
-                            updatePercentageChartStats(chartData);
+                                    // Automatycznie wczytaj widget wykresu miesięcznego (Topciu)
+                                    updateTopciuMonthlyWidgetChart();
                                 }
                             }, 100);
                         }
@@ -251,6 +250,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         showDetailsBtn.style.display = 'none';
                         document.getElementById('widgets-section').style.display = 'none'; // Ukryj sekcję widgetów
                         usernameDisplay.textContent = loggedInUser.name;
+                        // Przełącz layout 5-kolumnowy dla zwykłych użytkowników
+                        document.body.classList.add('non-topciu-layout');
+                        // Pokaż i narysuj widgety użytkownika od razu po zalogowaniu
+                        const userWidgetsRow = document.getElementById('user-widgets-row');
+                        if (userWidgetsRow) {
+                            userWidgetsRow.style.display = 'grid';
+                            const uw1 = document.getElementById('user-extrapolation-widget');
+                            if (uw1) uw1.style.display = 'none';
+                            // Zainicjalizuj przycisk rozwijania
+                            try { setupUserWidgetsToggle(); } catch (e) { /* no-op */ }
+                        }
+                        // Jeśli mamy już jakiekolwiek dane, spróbuj narysować natychmiast
+                        try { drawUserWidgets(loggedInUser); } catch (e) { /* no-op */ }
                     }
                     displayUserSummaryCards(cachedUsers, loggedInUser);
                     displayTransactions(cachedTransactions, loggedInUser);
@@ -332,12 +344,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // Inicjalizuj widget wykresu po załadowaniu użytkowników
+        // Inicjalizuj widget miesięczny dla Topcia po załadowaniu użytkowników
         if (loggedInUser && loggedInUser.name === 'Topciu') {
             setTimeout(() => {
-                const chartData = generatePercentageChartData(7);
-                drawPercentageChart(chartData, 'percentage-chart');
-                updatePercentageChartStats(chartData);
+                updateTopciuMonthlyWidgetChart();
             }, 200); // Krótkie opóźnienie dla pewności, że DOM jest gotowy
         }
     }
@@ -1570,72 +1580,40 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const targetPercentage = 3; // Cel: 3%
         
-        // Oblicz saldo na początku miesiąca
-        let balanceAtMonthStart = 0;
-        const activeUsers = cachedUsers.filter(user => {
-            const permissions = user.permissions || [];
-            return user.name === 'Topciu' || permissions.includes('topfund-terminal');
-        });
-        
-        console.log('Widget: Aktywni użytkownicy:', activeUsers.map(u => u.name));
-        
-        // Oblicz saldo początkowe dla wszystkich aktywnych użytkowników
-        activeUsers.forEach(user => {
-            balanceAtMonthStart += user.startBalance || 0;
-        });
-        
-        console.log('Widget: Saldo początkowe z startBalance:', balanceAtMonthStart);
-        
-        // Oblicz transakcje przed bieżącym miesiącem, aby uzyskać rzeczywiste saldo na początku miesiąca
-        let balanceAtMonthStartAfterTransactions = balanceAtMonthStart;
+        // Oblicz saldo Topcia na początku miesiąca (startBalance + transakcje sprzed miesiąca)
+        const topciuUser = (cachedUsers || []).find(u => u.name === 'Topciu');
+        let balanceAtMonthStart = (topciuUser && topciuUser.startBalance) ? topciuUser.startBalance : 0;
         transactions.forEach(transaction => {
-            const transactionDate = transaction.createdAt.toDate();
-            if (transactionDate < currentMonthStart) {
+            const tDate = transaction.createdAt.toDate();
+            if (tDate < currentMonthStart) {
                 if (transaction.type === 'trade' && transaction.details) {
-                    // Dla transakcji trade, dodaj zyski/straty do salda początkowego
-                    activeUsers.forEach(user => {
-                        const userDetail = transaction.details[user.id];
-                        if (userDetail) {
-                            let userProfit = userDetail.profitLossShare - (userDetail.commissionPaid || 0);
-                            if (user.name === 'Topciu' && userDetail.commissionCollected) {
-                                userProfit += userDetail.commissionCollected;
-                            }
-                            balanceAtMonthStartAfterTransactions += userProfit;
-                        }
-                    });
-                } else if ((transaction.type === 'deposit' || transaction.type === 'withdrawal')) {
-                    // Dla wpłat/wypłat, dodaj do salda początkowego
-                    const amount = transaction.type === 'deposit' ? transaction.amount : -transaction.amount;
-                    balanceAtMonthStartAfterTransactions += amount;
+                    const d = Object.values(transaction.details).find(v => v.name === 'Topciu');
+                    if (d) {
+                        let pnl = d.profitLossShare - (d.commissionPaid || 0);
+                        if (d.commissionCollected) pnl += d.commissionCollected;
+                        balanceAtMonthStart += pnl;
+                    }
+                } else if ((transaction.type === 'deposit' || transaction.type === 'withdrawal') && transaction.userName === 'Topciu') {
+                    const amount = transaction.type === 'deposit' ? (transaction.amount || 0) : -(transaction.amount || 0);
+                    balanceAtMonthStart += amount;
                 }
             }
         });
         
-        console.log('Widget: Saldo na początku miesiąca (po transakcjach):', balanceAtMonthStartAfterTransactions);
-        
-        // Użyj salda po transakcjach jako bazę do obliczeń
-        balanceAtMonthStart = balanceAtMonthStartAfterTransactions;
-        
-
-        
-        // Oblicz zysk z bieżącego miesiąca
+        // Oblicz zysk Topcia z bieżącego miesiąca
         let currentMonthProfit = 0;
         transactions.forEach(transaction => {
-            const transactionDate = transaction.createdAt.toDate();
-            if (transactionDate >= currentMonthStart) {
+            const tDate = transaction.createdAt.toDate();
+            if (tDate >= currentMonthStart) {
                 if (transaction.type === 'trade' && transaction.details) {
-                    activeUsers.forEach(user => {
-                        const userDetail = transaction.details[user.id];
-                        if (userDetail) {
-                            let userProfit = userDetail.profitLossShare - (userDetail.commissionPaid || 0);
-                            if (user.name === 'Topciu' && userDetail.commissionCollected) {
-                                userProfit += userDetail.commissionCollected;
-                            }
-                            currentMonthProfit += userProfit;
-                        }
-                    });
-                } else if ((transaction.type === 'deposit' || transaction.type === 'withdrawal')) {
-                    const amount = transaction.type === 'deposit' ? transaction.amount : -transaction.amount;
+                    const d = Object.values(transaction.details).find(v => v.name === 'Topciu');
+                    if (d) {
+                        let pnl = d.profitLossShare - (d.commissionPaid || 0);
+                        if (d.commissionCollected) pnl += d.commissionCollected;
+                        currentMonthProfit += pnl;
+                    }
+                } else if ((transaction.type === 'deposit' || transaction.type === 'withdrawal') && transaction.userName === 'Topciu') {
+                    const amount = transaction.type === 'deposit' ? (transaction.amount || 0) : -(transaction.amount || 0);
                     currentMonthProfit += amount;
                 }
             }
@@ -1686,7 +1664,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 progressFill.style.width = `${visualProgress}%`;
             }
             
-            progressPercentageEl.textContent = `${(currentMonthProfit / balanceAtMonthStart * 100).toFixed(1)}%`;
+            // Wyświetl realny miesięczny wynik Topcia (spójny z kartą), zaokrąglony do 0.1% z zaokrągleniem standardowym
+            const actualPct = balanceAtMonthStart > 0 ? (currentMonthProfit / balanceAtMonthStart * 100) : (currentMonthProfit > 0 ? 100 : 0);
+            const displayPct = Math.round(actualPct * 10) / 10; // 1.25 -> 1.3
+            progressPercentageEl.textContent = `${displayPct.toFixed(1)}%`;
             
             // Zmień kolor paska w zależności od postępu do celu
             if (progressPercentage >= 100) {
@@ -1763,6 +1744,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
+        // Pokaż rząd widgetów dla zwykłych użytkowników
+        if (loggedInUser && loggedInUser.name !== 'Topciu') {
+            const row = document.getElementById('user-widgets-row');
+            if (row) row.style.display = 'grid';
+            setupUserWidgetsToggle();
+            // Upewnij się, że elementy canvas są gotowe zanim narysujemy
+            setTimeout(() => drawUserWidgets(loggedInUser), 50);
+        }
     });
 
     onSnapshot(query(collection(db, "transactions"), orderBy("createdAt", "desc")), (snapshot) => {
@@ -1774,14 +1763,260 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Widget: Wywołanie po załadowaniu transakcji');
             updateMonthlyProgressWidget(cachedTransactions, loggedInUser); // Aktualizuj widget miesięcznego trackera
             
-            // Automatycznie wczytaj widget wykresu zysku dziennego
+            // Automatycznie wczytaj widget wykresu miesięcznego dla Topcia
             if (loggedInUser && loggedInUser.name === 'Topciu') {
-                const chartData = generatePercentageChartData(7);
-                drawPercentageChart(chartData, 'percentage-chart');
-                updatePercentageChartStats(chartData);
+                updateTopciuMonthlyWidgetChart();
+            }
+            // Odśwież widgety użytkownika (zwykłego)
+            if (loggedInUser && loggedInUser.name !== 'Topciu') {
+                drawUserWidgets(loggedInUser);
             }
         }
     });
+    // --- WIDGETY użytkownika (nie Topciu) ---
+    function drawUserWidgets(user) {
+        if (!user || user.name === 'Topciu') return;
+        // Zawsze rysuj słupkowy jako pierwszy (zawsze widoczny)
+        drawMonthlyProfitsChart(cachedTransactions || [], user);
+        // Ekstrapolacja może być zwinięta – rysuj tylko gdy widoczna
+        const row = document.getElementById('user-widgets-row');
+        const extrapCard = document.getElementById('user-extrapolation-widget');
+        if (row && extrapCard && extrapCard.style.display !== 'none') {
+            updateUserExtrapolationWidget(user);
+        }
+    }
+
+    function setupUserWidgetsToggle() {
+        const btn = document.getElementById('toggleUserWidgetsBtn');
+        const extrapCard = document.getElementById('user-extrapolation-widget');
+        if (!btn || !extrapCard) return;
+        // Domyślnie schowaj ekstrapolację
+        const saved = localStorage.getItem('userWidgetsExpanded');
+        const isExpanded = saved === 'true';
+        extrapCard.style.display = isExpanded ? '' : 'none';
+        btn.textContent = isExpanded ? '−' : '+';
+        btn.onclick = () => {
+            const isHidden = extrapCard.style.display === 'none';
+            extrapCard.style.display = isHidden ? '' : 'none';
+            btn.textContent = isHidden ? '−' : '+';
+            localStorage.setItem('userWidgetsExpanded', String(isHidden));
+            if (isHidden && loggedInUser && loggedInUser.name !== 'Topciu') {
+                // Po rozwinięciu narysuj wykres ekstrapolacji
+                updateUserExtrapolationWidget(loggedInUser);
+            }
+        };
+    }
+
+    function computeUserMonthlyRate(user) {
+        if (!user) return 0;
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        let balanceAtMonthStart = (cachedUsers || []).find(u => u.id === user.id)?.startBalance || user.startBalance || 0;
+        let currentMonthProfit = 0;
+        if (Array.isArray(cachedTransactions)) {
+            cachedTransactions.forEach(t => {
+                const tDate = t.createdAt.toDate();
+                const before = tDate < monthStart;
+                const current = tDate >= monthStart;
+                if (t.type === 'trade' && t.details) {
+                    const d = Object.values(t.details).find(v => v.name === user.name);
+                    if (d) {
+                        const pnl = d.profitLossShare - (d.commissionPaid || 0);
+                        if (before) balanceAtMonthStart += pnl;
+                        if (current) currentMonthProfit += pnl;
+                    }
+                } else if ((t.type === 'deposit' || t.type === 'withdrawal') && t.userName === user.name) {
+                    const amount = t.type === 'deposit' ? (t.amount || 0) : -(t.amount || 0);
+                    if (before) balanceAtMonthStart += amount;
+                    if (current) currentMonthProfit += amount;
+                }
+            });
+        }
+        if (balanceAtMonthStart <= 0) return 0;
+        return currentMonthProfit / balanceAtMonthStart;
+    }
+
+    function updateUserExtrapolationWidget(user) {
+        const row = document.getElementById('user-widgets-row');
+        const rateEl = document.getElementById('user-extrapolation-monthly-rate');
+        const finalEl = document.getElementById('user-extrapolation-final-value');
+        const canvas = document.getElementById('user-extrapolation-chart');
+        if (!row || !rateEl || !finalEl || !canvas) {
+            // Spróbuj ponownie po krótkim czasie – możliwe, że DOM jeszcze się renderuje
+            setTimeout(() => updateUserExtrapolationWidget(user), 80);
+            return;
+        }
+
+        const monthlyRate = computeUserMonthlyRate(user);
+        const ratePct = Math.round(monthlyRate * 1000) / 10;
+        rateEl.textContent = `${ratePct >= 0 ? '+' : ''}${ratePct.toFixed(1)}%`;
+        rateEl.className = ratePct >= 0 ? 'extrapolation-green' : 'negative-amount';
+
+        const base = getUserCurrentBalance(user);
+        if (!isFinite(base)) {
+            setTimeout(() => updateUserExtrapolationWidget(user), 80);
+            return;
+        }
+        if (base <= 0) {
+            finalEl.textContent = '—';
+            if (canvas.chart) { canvas.chart.destroy(); canvas.chart = null; }
+            // Zamiast kończyć – narysuj płaską linię, by widget był widoczny
+            const labels = [''];
+            const values = [0];
+            if (canvas.chart) canvas.chart.destroy();
+            canvas.chart = new Chart(canvas, {
+                type: 'line',
+                data: { labels, datasets: [{ data: values, borderColor: '#27ae60', pointRadius: 0 }]},
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+            });
+            return;
+        }
+
+        // Buduj serię do 2050
+        const now = new Date();
+        const end = new Date(2050, 11, 31);
+        let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth()) + 1;
+        months = Math.max(months, 0);
+        const labels = [];
+        const values = [];
+        let value = base;
+        for (let i = 0; i <= months; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+            labels.push(d.toLocaleDateString('pl-PL', { month: '2-digit', year: '2-digit' }));
+            if (i > 0) value = value * (1 + monthlyRate);
+            values.push(value);
+        }
+        finalEl.textContent = abbreviateNumber(values[values.length - 1]);
+
+        if (canvas.chart) canvas.chart.destroy();
+        canvas.chart = new Chart(canvas, {
+            type: 'line',
+            data: { labels, datasets: [{
+                label: 'Prognoza wartości (USD)',
+                data: values,
+                borderColor: '#27ae60',
+                backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0.2,
+                fill: true
+            }]},
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } },
+                    y: { grid: { color: 'rgba(0,0,0,0.08)' }, ticks: { callback: v => v.toLocaleString('pl-PL') + ' USD' } }
+                }
+            }
+        });
+
+        // Kliknięcie karty otwiera szczegółowy wykres ekstrapolacji dostosowany do użytkownika
+        const card = document.getElementById('user-extrapolation-widget');
+        if (card) {
+            card.onclick = () => openUserExtrapolationModal(user);
+        }
+    }
+
+    // Szczegółowy wykres ekstrapolacji dla zwykłego użytkownika (z PLN)
+    async function openUserExtrapolationModal(user) {
+        const modal = document.getElementById('extrapolationChartModal');
+        if (!modal) return;
+        // zaktualizuj podsumowanie PLN/USD z perspektywy użytkownika
+        const monthlyRate = computeUserMonthlyRate(user);
+        const base = getUserCurrentBalance(user);
+        if (base <= 0) {
+            modal.style.display = 'flex';
+            disableBodyScroll();
+            return;
+        }
+        // Przygotuj serię
+        const now = new Date();
+        const end = new Date(2050, 11, 31);
+        let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth()) + 1;
+        months = Math.max(months, 0);
+        let value = base;
+        for (let i = 0; i <= months; i++) {
+            if (i > 0) value = value * (1 + monthlyRate);
+        }
+        // Ustaw podsumowanie
+        const usdEl = document.getElementById('extrapolation-final-usd-num');
+        const plnEl = document.getElementById('extrapolation-final-pln-num');
+        if (usdEl) usdEl.textContent = abbreviateNumber(value);
+        if (plnEl) {
+            const pln = await convertUsdToPln(value);
+            plnEl.textContent = abbreviateNumber(pln);
+        }
+        // Narysuj duży wykres
+        await drawExtrapolationLargeForUser(user);
+        modal.style.display = 'flex';
+        disableBodyScroll();
+    }
+
+    async function drawExtrapolationLargeForUser(user) {
+        const canvas = document.getElementById('extrapolation-chart-large');
+        if (!canvas) return;
+        // Rozmiar jak w drawExtrapolationLarge (zre-użyj kalkulatora)
+        const size = computeEnlargedChartSize();
+        const shrink = 0.8;
+        canvas.width = Math.floor(size.width * shrink);
+        canvas.height = Math.floor(size.height * shrink);
+
+        const monthlyRate = computeUserMonthlyRate(user);
+        const base = getUserCurrentBalance(user);
+        if (base <= 0) return;
+        const now = new Date();
+        const end = new Date(2050, 11, 31);
+        let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth()) + 1;
+        months = Math.max(months, 0);
+        const labels = [];
+        const values = [];
+        let value = base;
+        for (let i = 0; i <= months; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+            labels.push(d.toLocaleDateString('pl-PL', { month: '2-digit', year: '2-digit' }));
+            if (i > 0) value = value * (1 + monthlyRate);
+            values.push(value);
+        }
+        if (canvas.chart) canvas.chart.destroy();
+        const isDark = document.body.classList.contains('dark-mode');
+        const textColor = isDark ? '#ffffff' : '#333333';
+        const gridColor = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)';
+        canvas.chart = new Chart(canvas, {
+            type: 'line',
+            data: { labels, datasets: [{
+                label: 'Prognoza wartości (USD)',
+                data: values,
+                borderColor: '#27ae60',
+                backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                borderWidth: 3,
+                pointRadius: 0,
+                tension: 0.2,
+                fill: true
+            }]},
+            options: {
+                responsive: false,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { display: false }, tooltip: { enabled: true, mode: 'index', intersect: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { maxTicksLimit: 10, color: textColor, autoSkip: true, maxRotation: 0 } },
+                    y: { grid: { color: gridColor }, ticks: { color: textColor, callback: v => v.toLocaleString('pl-PL') + ' USD' } }
+                }
+            }
+        });
+    }
+
+    function getUserCurrentBalance(user) {
+        try {
+            // Wersja szybka: użyj pola z listy użytkowników jeśli jest, fallback na 0
+            const u = (cachedUsers || []).find(u => u.id === user.id) || user;
+            return parseFloat(u.currentBalance || u.balance || u.startBalance || 0) || 0;
+        } catch { return 0; }
+    }
+
+    // usunięto poprzedni widget tekstowy miesięcznego zysku – wykres słupkowy działa jako widget
 
     // --- Obsługa zmiany motywu ---
     const currentTheme = localStorage.getItem('theme');
@@ -1816,11 +2051,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Odśwież widgety po zmianie motywu
         if (loggedInUser && loggedInUser.name === 'Topciu') {
             updateMonthlyProgressWidget(cachedTransactions, loggedInUser);
-            
-            // Odśwież widget wykresu procentowego
-            const chartData = generatePercentageChartData(7);
-            drawPercentageChart(chartData, 'percentage-chart');
-            updatePercentageChartStats(chartData);
+            updateTopciuMonthlyWidgetChart();
         }
     });
 
@@ -2108,8 +2339,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const widgetCard = event.target.closest('.widget-card');
         if (widgetCard && loggedInUser && loggedInUser.name === 'Topciu') {
             if (widgetCard.id === 'percentage-chart-widget') {
-                // Wykres zysku dziennego
-                openPercentageChartModal();
+                // Otwórz powiększony wykres miesięczny (jak u zwykłego użytkownika)
+                const modal = document.getElementById('enlargedChartModal');
+                if (modal) {
+                    drawEnlargedMonthlyProfitsChartForTopciu(cachedTransactions);
+                    modal.style.display = 'flex';
+                    disableBodyScroll();
+                }
             } else if (widgetCard.id === 'extrapolation-widget') {
                 // Powiększony wykres Ekstrapolacji
                 const modal = document.getElementById('extrapolationChartModal');
@@ -2125,30 +2361,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Funkcja do otwierania modala wykresu procentowego
-    function openPercentageChartModal() {
-        if (!loggedInUser || loggedInUser.name !== 'Topciu') return;
-        
-        // Generuj dane dla wykresu (domyślnie 7 dni)
-        const chartData = generatePercentageChartData(7);
-        
-        // Rysuj wykres w małym widgetcie
-        drawPercentageChart(chartData, 'percentage-chart');
-        
-        // Rysuj wykres w dużym modalu
-        drawPercentageChart(chartData, 'percentage-chart-large', true);
-        
-        // Aktualizuj statystyki
-        updatePercentageChartStats(chartData);
-        
-        // Pokaż modal
-        const percentageChartModal = document.getElementById('percentageChartModal');
-        percentageChartModal.style.display = 'flex';
-        disableBodyScroll();
-        
-        // Dodaj obsługę przycisków okresu
-        setupPeriodButtons();
-    }
+    // Zastąpienie: teraz Topciu ma w widżecie wykres miesięczny, więc nie pokazujemy modala dziennego
 
     // Funkcja do generowania danych dla wykresu zysku dziennego
     function generatePercentageChartData(days = 7) {
@@ -2201,7 +2414,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return data;
     }
 
-    // Funkcja do rysowania wykresu procentowego z Chart.js
+    // Funkcja do rysowania wykresu procentowego z Chart.js (pozostaje dla innych miejsc, ale nie dla Topcia-widgetu)
     function drawPercentageChart(data, canvasId, isLarge = false) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
@@ -2333,6 +2546,116 @@ document.addEventListener('DOMContentLoaded', () => {
         // Stwórz wykres
         canvas.chart = new Chart(canvas, config);
     }
+
+    // NOWOŚĆ: Mały wykres miesięczny dla Topcia w sekcji Widgety (używa naszego canvasu 'percentage-chart')
+    function updateTopciuMonthlyWidgetChart() {
+        if (!loggedInUser || loggedInUser.name !== 'Topciu') return;
+        const canvas = document.getElementById('percentage-chart');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+
+        // Dopasuj rozmiar do kontenera widżetu
+        const container = canvas.parentElement;
+        const containerWidth = container.clientWidth || 300;
+        const containerHeight = container.clientHeight || 150;
+        canvas.width = containerWidth - 20; // padding wizualny
+        canvas.height = containerHeight - 20;
+
+        // Zbierz dane: ostatnie 6 miesięcy zysków Topcia
+        const now = new Date();
+        const monthsData = [];
+        for (let i = 5; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const monthName = date.toLocaleDateString('pl-PL', { month: 'short' });
+            monthsData.push({ month: monthName, profit: 0, date });
+        }
+
+        if (cachedTransactions && cachedTransactions.length > 0) {
+            cachedTransactions.forEach(transaction => {
+                const tDate = transaction.createdAt.toDate();
+                const idx = monthsData.findIndex(m => m.date.getMonth() === tDate.getMonth() && m.date.getFullYear() === tDate.getFullYear());
+                if (idx === -1) return;
+
+                if (transaction.type === 'trade' && transaction.details) {
+                    const topciuDetail = Object.values(transaction.details).find(d => d.name === 'Topciu');
+                    if (topciuDetail) {
+                        let pnl = topciuDetail.profitLossShare - (topciuDetail.commissionPaid || 0);
+                        if (topciuDetail.commissionCollected) pnl += topciuDetail.commissionCollected; // uwzględnij prowizje zebrane
+                        monthsData[idx].profit += pnl;
+                    }
+                } else if ((transaction.type === 'deposit' || transaction.type === 'withdrawal') && transaction.userName === 'Topciu') {
+                    const amount = transaction.type === 'deposit' ? (transaction.amount || 0) : -(transaction.amount || 0);
+                    monthsData[idx].profit += amount; // uwzględnij wpłaty/wypłaty
+                }
+            });
+        }
+
+        // Motyw
+        const isDark = document.body.classList.contains('dark-mode');
+        const textColor = isDark ? '#ecf0f1' : '#333';
+        const gridColor = isDark ? '#404040' : '#e0e0e0';
+        const posColor = isDark ? '#2ecc71' : '#27ae60';
+        const negColor = isDark ? '#e67e22' : '#d35400';
+
+        // Wyczyść
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const padding = 24;
+        const chartWidth = canvas.width - padding * 2;
+        const chartHeight = canvas.height - padding * 2;
+
+        const maxProfit = Math.max(...monthsData.map(m => m.profit), 0);
+        const minProfit = Math.min(...monthsData.map(m => m.profit), 0);
+        const range = maxProfit - minProfit || 1;
+        const zeroY = padding + chartHeight - (0 - minProfit) / range * chartHeight;
+
+        // siatka
+        ctx.strokeStyle = gridColor;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        for (let i = 0; i <= 2; i++) {
+            const y = padding + (chartHeight / 2) * i;
+            ctx.beginPath();
+            ctx.moveTo(padding, y);
+            ctx.lineTo(padding + chartWidth, y);
+            ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+        // oś zero
+        ctx.strokeStyle = textColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(padding, zeroY);
+        ctx.lineTo(padding + chartWidth, zeroY);
+        ctx.stroke();
+
+        // słupki
+        const barWidth = chartWidth / monthsData.length * 0.6;
+        const barSpacing = chartWidth / monthsData.length * 0.4;
+        ctx.textAlign = 'center';
+        ctx.font = '10px Roboto';
+        monthsData.forEach((m, idx) => {
+            const x = padding + (chartWidth / monthsData.length) * idx + barSpacing / 2;
+            const barH = Math.abs(m.profit) / range * chartHeight;
+            const y = m.profit >= 0 ? zeroY - barH : zeroY;
+            ctx.fillStyle = m.profit >= 0 ? posColor : negColor;
+            ctx.fillRect(x, y, barWidth, barH);
+            ctx.fillStyle = textColor;
+            ctx.fillText(m.month, x + barWidth / 2, padding + chartHeight + 12);
+
+            // wartość nad słupkiem
+            if (Math.abs(m.profit) > 0.004) {
+                ctx.font = '9px Roboto';
+                const valueY = m.profit >= 0 ? y - 4 : y + barH + 12;
+                ctx.fillText(`${m.profit.toFixed(2)}`, x + barWidth / 2, valueY);
+            }
+        });
+
+        // Uaktualnij podpis pod wartość na karcie
+        // Usuwamy pokazywanie liczby pod miniaturką (widgetLabel usunięty z DOM)
+    }
     
     // Funkcja do obsługi tooltipów wykresu - usunięta, bo Chart.js ma wbudowane tooltipy
 
@@ -2363,6 +2686,11 @@ document.addEventListener('DOMContentLoaded', () => {
     async function drawExtrapolationLarge() {
         const canvas = document.getElementById('extrapolation-chart-large');
         if (!canvas) return;
+        // Dopasuj rozmiar do viewportu, używając tej samej funkcji co dla miesięcznego wykresu
+        const size = computeEnlargedChartSize();
+        const shrink = 0.80; // delikatne pomniejszenie, aby uniknąć scrolla poziomego/pionowego
+        canvas.width = Math.floor(size.width * shrink);
+        canvas.height = Math.floor(size.height * shrink);
         const monthlyRate = getCurrentMonthlyRate();
         const base = getCurrentTotalBalanceValue();
         if (base <= 0) return;
@@ -2385,13 +2713,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // Uzupełnij podsumowanie (USD + PLN)
         const finalUsdNumEl = document.getElementById('extrapolation-final-usd-num');
         const finalPlnNumEl = document.getElementById('extrapolation-final-pln-num');
-        if (finalUsdNumEl) finalUsdNumEl.textContent = `${value.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        if (finalUsdNumEl) finalUsdNumEl.textContent = abbreviateNumber(value);
         if (finalPlnNumEl) {
             const pln = await convertUsdToPln(value);
-            finalPlnNumEl.textContent = `${pln.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            finalPlnNumEl.textContent = abbreviateNumber(pln);
         }
 
         if (canvas.chart) canvas.chart.destroy();
+        const isDark = document.body.classList.contains('dark-mode');
+        const textColor = isDark ? '#ffffff' : '#333333';
+        const gridColor = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)';
         canvas.chart = new Chart(canvas, {
             type: 'line',
             data: {
@@ -2410,12 +2741,30 @@ document.addEventListener('DOMContentLoaded', () => {
             options: {
                 responsive: false,
                 maintainAspectRatio: false,
+                layout: { padding: { top: 4, right: 4, bottom: 4, left: 4 } },
+                interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    legend: { display: false }
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: true,
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: isDark ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: '#27ae60',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: function(ctx) {
+                                const num = ctx.parsed.y.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                return ` ${num} USD`;
+                            }
+                        }
+                    }
                 },
                 scales: {
-                    x: { grid: { display: false }, ticks: { maxTicksLimit: 12, color: '#ffffff' } },
-                    y: { grid: { color: 'rgba(255,255,255,0.15)' }, ticks: { color: '#ffffff', callback: (v) => v.toLocaleString('pl-PL') + ' USD' } }
+                    x: { grid: { display: false }, ticks: { maxTicksLimit: 8, color: textColor, autoSkip: true } },
+                    y: { grid: { color: gridColor }, ticks: { color: textColor, callback: (v) => v.toLocaleString('pl-PL') + ' USD' } }
                 }
             }
         });
@@ -2442,11 +2791,65 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getCurrentMonthlyRate() {
-        // Źródło: trackerData.currentProgress (procent miesięczny Topcia względem salda na początek miesiąca)
+        // Najpierw spróbuj policzyć precyzyjnie dla Topcia z transakcji,
+        // aby zgadzało się z kartą użytkownika
+        const topciuRate = computeTopciuMonthlyRateFromTransactions();
+        if (topciuRate !== null) return topciuRate;
+        // Fallback: trackerData (fund-level)
         if (window.trackerData && typeof window.trackerData.currentProgress === 'number') {
             return window.trackerData.currentProgress / 100; // jako ułamek
         }
         return 0;
+    }
+
+    // Wylicz miesięczny rate dla Topcia w oparciu o cachedTransactions (zgodnie z calculateDetailedStats)
+    function computeTopciuMonthlyRateFromTransactions() {
+        try {
+            if (!loggedInUser || loggedInUser.name !== 'Topciu') return null;
+            if (!Array.isArray(cachedTransactions)) return null;
+            const now = new Date();
+            const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+            // saldo początkowe Topcia
+            const topciuStart = (cachedUsers || []).find(u => u.name === 'Topciu')?.startBalance || 0;
+            let balanceAtMonthStart = topciuStart;
+            let currentMonthProfit = 0;
+
+            cachedTransactions.forEach(t => {
+                const tDate = t.createdAt.toDate();
+                const isBeforeMonth = tDate < currentMonthStart;
+                const isCurrentMonth = tDate >= currentMonthStart;
+                if (t.type === 'trade' && t.details) {
+                    const d = Object.values(t.details).find(v => v.name === 'Topciu');
+                    if (d) {
+                        let pnl = d.profitLossShare - (d.commissionPaid || 0);
+                        if (d.commissionCollected) pnl += d.commissionCollected;
+                        if (isBeforeMonth) balanceAtMonthStart += pnl;
+                        if (isCurrentMonth) currentMonthProfit += pnl;
+                    }
+                } else if ((t.type === 'deposit' || t.type === 'withdrawal') && t.userName === 'Topciu') {
+                    const amount = t.type === 'deposit' ? (t.amount || 0) : -(t.amount || 0);
+                    if (isBeforeMonth) balanceAtMonthStart += amount;
+                    if (isCurrentMonth) currentMonthProfit += amount;
+                }
+            });
+
+            if (balanceAtMonthStart <= 0) return 0;
+            return currentMonthProfit / balanceAtMonthStart;
+        } catch {
+            return null;
+        }
+    }
+
+    // Skrócone formatowanie dużych liczb: 1.2k, 250k, 3.4M, 1.1B
+    function abbreviateNumber(num) {
+        if (!isFinite(num)) return '—';
+        const abs = Math.abs(num);
+        const sign = num < 0 ? '-' : '';
+        if (abs >= 1_000_000_000) return sign + (abs / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + 'B';
+        if (abs >= 1_000_000) return sign + (abs / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+        if (abs >= 1_000) return sign + (abs / 1_000).toFixed(0) + 'k';
+        return sign + abs.toFixed(0);
     }
 
     function updateExtrapolationWidget() {
@@ -2457,7 +2860,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!widgetCard || !rateEl || !finalEl || !canvas) return;
 
         const monthlyRate = getCurrentMonthlyRate();
-        rateEl.textContent = `${monthlyRate >= 0 ? '+' : ''}${(monthlyRate * 100).toFixed(1)}%`;
+        // Zaokrąglij do jednego miejsca, ale bez zaniżania – użyj Math.round
+        const ratePct = Math.round(monthlyRate * 1000) / 10; // np. 1.24% -> 1.2%, 1.25% -> 1.3%
+        rateEl.textContent = `${ratePct >= 0 ? '+' : ''}${ratePct.toFixed(1)}%`;
+        // Koloruj wynik: zielony dla dodatnich, pomarańczowy dla ujemnych
+        rateEl.className = ratePct >= 0 ? 'extrapolation-green' : 'negative-amount';
 
         const base = getCurrentTotalBalanceValue();
         // Zabezpieczenie: jeżeli nic się nie zmieniło, nie renderuj ponownie
@@ -2492,7 +2899,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Aktualizuj tekst prognozy (ostatnia wartość) – format z separatorami tysięcy
         const finalValue = values[values.length - 1];
-        const finalNum = finalValue.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const finalNum = abbreviateNumber(finalValue);
         finalEl.textContent = finalNum;
 
         // Rysuj wykres
@@ -2500,6 +2907,9 @@ document.addEventListener('DOMContentLoaded', () => {
             extrapolationChart.destroy();
             extrapolationChart = null;
         }
+        const isDark = document.body.classList.contains('dark-mode');
+        const textColor = isDark ? '#ecf0f1' : '#333333';
+        const gridColor = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)';
         const config = {
             type: 'line',
             data: {
@@ -2519,9 +2929,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: false,
+                interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        enabled: true,
                         mode: 'index',
                         intersect: false,
                         callbacks: {
@@ -2535,11 +2947,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 scales: {
                     x: {
                         grid: { display: false },
-                        ticks: { maxTicksLimit: 8 }
+                        ticks: { maxTicksLimit: 8, color: textColor, autoSkip: true, maxRotation: 0 }
                     },
                     y: {
-                        grid: { color: 'rgba(0,0,0,0.08)' },
+                        grid: { color: gridColor },
                         ticks: {
+                            color: textColor,
                             callback: function(value) { return value.toLocaleString('pl-PL') + ' USD'; }
                         }
                     }
@@ -2864,15 +3277,31 @@ window.checkArchiveTransactions = function() {
         }
     }
 
+    // Obliczenie rozmiaru płótna tak, aby mieściło się bez scrolla w modalu
+    function computeEnlargedChartSize() {
+        const viewportW = window.innerWidth || 1200;
+        const viewportH = window.innerHeight || 800;
+        // Rezerwy na ramkę modala, nagłówek (tytuł + X), paddingi i podpisy osi
+        const horizontalReserve = 25;
+        const verticalReserve = 250;
+        const usableW = Math.max(480, Math.floor(viewportW * 0.96) - horizontalReserve);
+        const usableH = Math.max(300, Math.floor(viewportH * 0.96) - verticalReserve);
+        const aspect = 16 / 9;
+        const widthCandidate = Math.min(usableW, Math.floor(usableH * aspect));
+        const heightCandidate = Math.floor(widthCandidate / aspect);
+        return { width: widthCandidate, height: heightCandidate };
+    }
+
     function drawEnlargedMonthlyProfitsChart(transactions, currentUser) {
         if (!currentUser || currentUser.name === 'Topciu') return;
         
         const chartElement = document.getElementById('enlarged-monthly-profits-chart');
         if (!chartElement) return;
 
-        // Ustaw rozmiar canvas
-        chartElement.width = 900;
-        chartElement.height = 500;
+        // Ustaw rozmiar canvas dynamicznie, aby uniknąć scrolla
+        const size = computeEnlargedChartSize();
+        chartElement.width = size.width;
+        chartElement.height = size.height;
 
         const ctx = chartElement.getContext('2d');
         const now = new Date();
@@ -2919,10 +3348,27 @@ window.checkArchiveTransactions = function() {
         ctx.clearRect(0, 0, chartElement.width, chartElement.height);
 
         // Ustawienia wykresu
-        const topMargin = 60;
-        const bottomMargin = 80;
-        const leftMargin = 120; // Zwiększony margines lewy dla etykiet osi Y
-        const rightMargin = 60;
+        const topMargin = 42;
+        const bottomMargin = 58; // ciaśniej, aby stopka się mieściła
+        const rightMargin = 28;
+        let isMobile = (window.innerWidth || 0) <= 768;
+        
+        // Dynamiczny lewy margines zależny od szerokości etykiet osi Y (by nie marnować miejsca)
+        ctx.font = isMobile ? '11px Roboto' : '12px Roboto';
+        const tempMax = Math.max(...monthsData.map(m => m.profit), 0);
+        const tempMin = Math.min(...monthsData.map(m => m.profit), 0);
+        const tempRange = tempMax - tempMin || 1;
+        let maxLabelWidthPx = 0;
+        for (let i = 0; i <= 6; i++) {
+            const value = tempMax - (tempRange / 6) * i;
+            if (value !== 0) {
+                const w = ctx.measureText(`${value.toFixed(0)}`).width;
+                maxLabelWidthPx = Math.max(maxLabelWidthPx, w);
+            }
+        }
+        const baseLeft = isMobile ? 54 : 96;
+        const paddingForLabels = isMobile ? 10 : 16;
+        const leftMargin = Math.max(baseLeft, Math.ceil(maxLabelWidthPx + paddingForLabels));
         
         const chartWidth = chartElement.width - leftMargin - rightMargin;
         const chartHeight = chartElement.height - topMargin - bottomMargin;
@@ -2960,11 +3406,17 @@ window.checkArchiveTransactions = function() {
         ctx.stroke();
 
         // Narysuj słupki
-        const barWidth = chartWidth / monthsData.length * 0.7;
-        const barSpacing = chartWidth / monthsData.length * 0.3;
+        const segmentWidth = chartWidth / monthsData.length;
+        const barWidth = Math.floor(segmentWidth * 0.7);
+        const innerOffset = (segmentWidth - barWidth) / 2; // centrowanie w segmencie
+        // Ustal odstęp etykiet osi X, aby nie nachodziły na siebie na wąskich ekranach
+        const minPxPerLabel = 60; // minimalna szerokość na jedną etykietę
+        const pxPerLabel = segmentWidth;
+        const labelStep = Math.max(1, Math.ceil(minPxPerLabel / pxPerLabel));
+        isMobile = (window.innerWidth || 0) <= 768;
 
         monthsData.forEach((data, index) => {
-            const x = leftMargin + (chartWidth / monthsData.length) * index + barSpacing / 2;
+            const x = leftMargin + index * segmentWidth + innerOffset;
             const barHeight = Math.abs(data.profit) / range * chartHeight;
             const y = data.profit >= 0 ? zeroY - barHeight : zeroY;
             
@@ -2972,29 +3424,31 @@ window.checkArchiveTransactions = function() {
             ctx.fillRect(x, y, barWidth, barHeight);
 
             // Dodaj wartość na słupku (tylko jeśli wartość != 0)
-            if (data.profit !== 0) {
+            if (Math.abs(data.profit) > 0.004) {
                 ctx.fillStyle = textColor;
-                ctx.font = '14px Roboto';
+                ctx.font = '13px Roboto';
                 ctx.textAlign = 'center';
-                const valueY = data.profit >= 0 ? y - 8 : y + barHeight + 18;
-                ctx.fillText(`${data.profit.toFixed(0)}`, x + barWidth / 2, valueY);
+                const valueY = data.profit >= 0 ? y - 8 : y + barHeight + 14;
+                ctx.fillText(`${data.profit.toFixed(2)}`, x + barWidth / 2, valueY);
             }
 
-            // Dodaj etykietę miesiąca
+            // Dodaj etykietę miesiąca (co labelStep), zawsze dodaj dla ostatniego miesiąca
+            if (index % labelStep === 0 || index === monthsData.length - 1) {
             ctx.fillStyle = textColor;
-            ctx.font = '12px Roboto';
+                ctx.font = (isMobile ? '10px Roboto' : '11px Roboto');
             ctx.textAlign = 'center';
-            ctx.fillText(data.month, x + barWidth / 2, topMargin + chartHeight + 25);
+                ctx.fillText(data.month, Math.round(x + barWidth / 2), topMargin + chartHeight + (isMobile ? 16 : 18));
+            }
         });
 
         // Dodaj etykiety osi Y
         ctx.fillStyle = textColor;
-        ctx.font = '12px Roboto';
+        ctx.font = isMobile ? '10px Roboto' : '11px Roboto';
         ctx.textAlign = 'right';
         
         for (let i = 0; i <= 6; i++) {
             const value = maxProfit - (range / 6) * i;
-            const y = topMargin + (chartHeight / 6) * i + 4;
+            const y = topMargin + (chartHeight / 6) * i + 2;
             if (value !== 0) {
                 ctx.fillText(`${value.toFixed(0)}`, leftMargin - 10, y);
             }
@@ -3002,16 +3456,168 @@ window.checkArchiveTransactions = function() {
 
         // Dodaj tytuł osi Y
         ctx.save();
-        ctx.translate(30, topMargin + chartHeight / 2);
+        ctx.translate(isMobile ? 14 : 20, topMargin + chartHeight / 2);
         ctx.rotate(-Math.PI / 2);
         ctx.textAlign = 'center';
-        ctx.font = '14px Roboto';
+        ctx.font = isMobile ? '11px Roboto' : '13px Roboto';
         ctx.fillText('Zysk (USD)', 0, 0);
         ctx.restore();
 
         // Dodaj tytuł osi X
         ctx.fillStyle = textColor;
-        ctx.font = '14px Roboto';
+        ctx.font = '13px Roboto';
         ctx.textAlign = 'center';
-        ctx.fillText('Miesiąc', leftMargin + chartWidth / 2, chartElement.height - 20);
+        ctx.fillText('Miesiąc', leftMargin + chartWidth / 2, chartElement.height - 10);
+    }
+
+    // Wersja powiększonego wykresu dla Topcia: używa tych samych zasad co zwykły, ale liczy zysk Topcia
+    function drawEnlargedMonthlyProfitsChartForTopciu(transactions) {
+        const chartElement = document.getElementById('enlarged-monthly-profits-chart');
+        if (!chartElement) return;
+
+        const size = computeEnlargedChartSize();
+        chartElement.width = size.width;
+        chartElement.height = size.height;
+        const ctx = chartElement.getContext('2d');
+
+        const now = new Date();
+        const monthsData = [];
+        for (let i = 11; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const monthName = date.toLocaleDateString('pl-PL', { month: 'short', year: '2-digit' });
+            monthsData.push({ month: monthName, profit: 0, date });
+        }
+
+        if (transactions && transactions.length > 0) {
+            transactions.forEach(transaction => {
+                const tDate = transaction.createdAt.toDate();
+                const idx = monthsData.findIndex(m => m.date.getMonth() === tDate.getMonth() && m.date.getFullYear() === tDate.getFullYear());
+                if (idx === -1) return;
+
+                if (transaction.type === 'trade' && transaction.details) {
+                    const d = Object.values(transaction.details).find(v => v.name === 'Topciu');
+                    if (d) {
+                        let pnl = d.profitLossShare - (d.commissionPaid || 0);
+                        if (d.commissionCollected) pnl += d.commissionCollected; // prowizje zebrane przez Topcia
+                        monthsData[idx].profit += pnl;
+                    }
+                } else if ((transaction.type === 'deposit' || transaction.type === 'withdrawal') && transaction.userName === 'Topciu') {
+                    const amount = transaction.type === 'deposit' ? (transaction.amount || 0) : -(transaction.amount || 0);
+                    monthsData[idx].profit += amount;
+                }
+            });
+        }
+
+        const isDarkMode = document.body.classList.contains('dark-mode');
+        const textColor = isDarkMode ? '#ecf0f1' : '#333';
+        const gridColor = isDarkMode ? '#404040' : '#e0e0e0';
+        const positiveColor = isDarkMode ? '#2ecc71' : '#27ae60';
+        const negativeColor = isDarkMode ? '#e67e22' : '#d35400';
+
+        ctx.clearRect(0, 0, chartElement.width, chartElement.height);
+
+        // Użyj identycznych ustawień jak u pozostałych użytkowników
+        const topMargin = 42;
+        const bottomMargin = 58;
+        const rightMargin = 28;
+        let isMobile = (window.innerWidth || 0) <= 768;
+
+        // Dynamiczny lewy margines zależny od szerokości etykiet osi Y
+        ctx.font = isMobile ? '11px Roboto' : '12px Roboto';
+        const tempMax2 = Math.max(...monthsData.map(m => m.profit), 0);
+        const tempMin2 = Math.min(...monthsData.map(m => m.profit), 0);
+        const tempRange2 = tempMax2 - tempMin2 || 1;
+        let maxLabelWidthPx2 = 0;
+        for (let i = 0; i <= 6; i++) {
+            const value = tempMax2 - (tempRange2 / 6) * i;
+            if (value !== 0) {
+                const w = ctx.measureText(`${value.toFixed(0)}`).width;
+                maxLabelWidthPx2 = Math.max(maxLabelWidthPx2, w);
+            }
+        }
+        const baseLeft2 = isMobile ? 54 : 96;
+        const paddingForLabels2 = isMobile ? 10 : 16;
+        const leftMargin = Math.max(baseLeft2, Math.ceil(maxLabelWidthPx2 + paddingForLabels2));
+
+        const chartWidth = chartElement.width - leftMargin - rightMargin;
+        const chartHeight = chartElement.height - topMargin - bottomMargin;
+
+        const maxProfit = Math.max(...monthsData.map(m => m.profit), 0);
+        const minProfit = Math.min(...monthsData.map(m => m.profit), 0);
+        const range = maxProfit - minProfit || 1;
+        const zeroY = topMargin + chartHeight - (0 - minProfit) / range * chartHeight;
+
+        ctx.strokeStyle = gridColor;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        for (let i = 0; i <= 6; i++) {
+            const y = topMargin + (chartHeight / 6) * i;
+            ctx.beginPath();
+            ctx.moveTo(leftMargin, y);
+            ctx.lineTo(leftMargin + chartWidth, y);
+            ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+        ctx.strokeStyle = textColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(leftMargin, zeroY);
+        ctx.lineTo(leftMargin + chartWidth, zeroY);
+        ctx.stroke();
+
+        const segmentWidth2 = chartWidth / monthsData.length;
+        const barWidth = Math.floor(segmentWidth2 * 0.7);
+        const innerOffset2 = (segmentWidth2 - barWidth) / 2;
+        // Rzadziej rysuj etykiety X na wąskim ekranie
+        const minPxPerLabel2 = 60;
+        const pxPerLabel2 = segmentWidth2;
+        const labelStep2 = Math.max(1, Math.ceil(minPxPerLabel2 / pxPerLabel2));
+
+        monthsData.forEach((m, index) => {
+            const x = leftMargin + index * segmentWidth2 + innerOffset2;
+            const barHeight = Math.abs(m.profit) / range * chartHeight;
+            const y = m.profit >= 0 ? zeroY - barHeight : zeroY;
+            ctx.fillStyle = m.profit >= 0 ? positiveColor : negativeColor;
+            ctx.fillRect(x, y, barWidth, barHeight);
+
+            if (Math.abs(m.profit) > 0.004) {
+                ctx.fillStyle = textColor;
+                ctx.font = '13px Roboto';
+                ctx.textAlign = 'center';
+                const valueY = m.profit >= 0 ? y - 8 : y + barHeight + 14;
+                ctx.fillText(`${m.profit.toFixed(2)}`, x + barWidth / 2, valueY);
+            }
+
+            if (index % labelStep2 === 0 || index === monthsData.length - 1) {
+                ctx.fillStyle = textColor;
+                ctx.font = isMobile ? '10px Roboto' : '12px Roboto';
+                ctx.textAlign = 'center';
+                ctx.fillText(m.month, Math.round(x + barWidth / 2), topMargin + chartHeight + (isMobile ? 18 : 25));
+            }
+        });
+
+        ctx.fillStyle = textColor;
+        ctx.font = isMobile ? '10px Roboto' : '11px Roboto';
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= 6; i++) {
+            const value = maxProfit - (range / 6) * i;
+            const y = topMargin + (chartHeight / 6) * i + 2;
+            if (value !== 0) {
+                ctx.fillText(`${value.toFixed(0)}`, leftMargin - 10, y);
+            }
+        }
+
+        ctx.save();
+        ctx.translate(isMobile ? 14 : 20, topMargin + chartHeight / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.font = isMobile ? '11px Roboto' : '13px Roboto';
+        ctx.fillText('Zysk (USD)', 0, 0);
+        ctx.restore();
+
+        ctx.fillStyle = textColor;
+        ctx.font = '13px Roboto';
+        ctx.textAlign = 'center';
+        ctx.fillText('Miesiąc', leftMargin + chartWidth / 2, chartElement.height - 10);
     }

@@ -1,3 +1,17 @@
+/* Rząd widgetów dla zwykłych użytkowników */
+.user-widgets-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.user-widgets-row .widget-card { min-width: 0; }
+@media (max-width: 768px) {
+    .user-widgets-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+}
 :root {
     --primary-color: #3498db;
     --secondary-color: #2ecc71;
@@ -106,6 +120,26 @@ body.dark-mode .month-transaction-count .negative-amount {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
     gap: 20px;
+}
+
+/* Układ 5-kolumnowy tylko dla zwykłych użytkowników (nie Topciu) */
+@media (min-width: 1024px) {
+    /* 10 równych kolumn => łatwo odwzorować połówki (0.5 => 1 kolumna) */
+    body.non-topciu-layout .container {
+        grid-template-columns: repeat(10, 1fr);
+    }
+    /* Użytkownik: 0.5 pola => 1/10 szerokości */
+    body.non-topciu-layout #user-card {
+        grid-column: span 1;
+    }
+    /* Widgety: 2.5 pola => 5/10 szerokości */
+    body.non-topciu-layout #monthly-profits-section {
+        grid-column: span 5;
+    }
+    /* Podsumowanie finansowe: 2 pola => 4/10 szerokości */
+    body.non-topciu-layout #summary-section {
+        grid-column: span 4;
+    }
 }
 
 /* Responsywność dla urządzeń mobilnych */
@@ -1468,18 +1502,18 @@ body.dark-mode .details-content {
 
 /* Style dla modala z większym wykresem */
 .enlarged-chart-modal {
-    max-width: 90vw;
-    max-height: 90vh;
+    max-width: 99vw;
+    max-height: 98vh;
     width: auto;
     height: auto;
-    padding: 20px;
+    padding: 6px;
 }
 
 #enlarged-chart-container {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 20px;
+    padding: 4px;
     background-color: var(--background-color);
     border-radius: 8px;
     border: 1px solid var(--border-color);
@@ -1489,6 +1523,8 @@ body.dark-mode .details-content {
 #enlarged-monthly-profits-chart {
     max-width: 100%;
     max-height: 100%;
+    width: 100%;
+    height: auto;
     background-color: var(--card-background);
     border-radius: 4px;
     overflow: hidden;
@@ -1528,16 +1564,26 @@ body.dark-mode .details-content {
     overflow: hidden;
 }
 
+/* Niebieski przycisk toggle w nagłówku karty Widgety */
+#toggleUserWidgetsBtn {
+    background-color: var(--primary-color);
+    color: #fff;
+    border: 1px solid var(--primary-color);
+}
+#toggleUserWidgetsBtn:hover {
+    background-color: #2980b9;
+}
+
 /* Powiększony wykres Ekstrapolacji – wykorzystaj te same style kontenera */
 #extrapolationChartModal .chart-container-large {
     display: flex;
     justify-content: center;
     align-items: center;
     width: 100%;
-    max-width: 800px;
+    max-width: 53vw; /* ~35% węższe niż 82vw */
     margin: 0 auto;
-    padding: 20px;
-    background-color: var(--card-background);
+    padding: 8px;
+    background-color: var(--background-color);
     border-radius: 8px;
     border: 1px solid var(--border-color);
     overflow: hidden;
@@ -1545,19 +1591,43 @@ body.dark-mode .details-content {
 
 /* Rozmiar płótna dużego wykresu Ekstrapolacji */
 #extrapolation-chart-large {
-    background-color: var(--card-background);
+    background-color: var(--background-color);
     border-radius: 4px;
     padding: 10px;
     max-width: 100%;
-    width: 800px;
-    height: 400px;
+    width: 100%;
+    height: auto;
+    box-sizing: border-box;
 }
 
 /* Ograniczenia rozmiaru modala z wykresem Ekstrapolacji */
 #extrapolationChartModal .modal-content {
-    max-width: 900px;
+    max-width: 53vw; /* ~35% węższe niż 82vw */
     max-height: 90vh;
     overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* --- MOBILE: Ekstrapolacja modal - pełna szerokość i mniejsze odstępy --- */
+@media (max-width: 768px) {
+    #extrapolationChartModal .modal-content {
+        max-width: 96vw;
+        padding: 10px;
+    }
+    #extrapolationChartModal .chart-container-large {
+        max-width: 96vw;
+        padding: 6px;
+    }
+}
+@media (max-width: 480px) {
+    #extrapolationChartModal .modal-content {
+        max-width: 98vw;
+        padding: 8px;
+    }
+    #extrapolationChartModal .chart-container-large {
+        max-width: 98vw;
+        padding: 4px;
+    }
 }
 
 #extrapolationChartModal .extrapolation-summary {
@@ -1656,13 +1726,13 @@ body.dark-mode .details-content {
 /* Responsywność dla modala z większym wykresem */
 @media (max-width: 768px) {
     .enlarged-chart-modal {
-        max-width: 95vw;
-        max-height: 85vh;
-        padding: 15px;
+        max-width: 99vw;
+        max-height: 96vh;
+        padding: 6px;
     }
     
     #enlarged-chart-container {
-        padding: 10px;
+        padding: 4px;
     }
     
     #enlarged-monthly-profits-chart {
@@ -1673,18 +1743,18 @@ body.dark-mode .details-content {
 
 @media (max-width: 480px) {
     .enlarged-chart-modal {
-        max-width: 98vw;
-        max-height: 80vh;
-        padding: 10px;
+        max-width: 99vw;
+        max-height: 98vh;
+        padding: 4px;
     }
     
     .enlarged-chart-modal h2 {
-        font-size: 1.2em;
-        margin-bottom: 10px;
+        font-size: 1.05em;
+        margin-bottom: 6px;
     }
     
     #enlarged-chart-container {
-        padding: 5px;
+        padding: 3px;
     }
     
     /* Lepsze proporcje dla bardzo małych ekranów */
@@ -1744,6 +1814,17 @@ body.dark-mode .details-content {
         background: linear-gradient(135deg, rgba(52, 152, 219, 0.1), rgba(52, 152, 219, 0.15));
         transform: scale(1.02);
         outline: none;
+    }
+}
+
+/* Mobilne wyrównanie przycisku "+" (Widgety) na prawą stronę */
+@media (max-width: 480px) {
+    #monthly-profits-section .card-header {
+        flex-direction: row !important;
+        align-items: center !important;
+    }
+    #toggleUserWidgetsBtn {
+        margin-left: auto;
     }
 }
 
@@ -2271,6 +2352,14 @@ body.dark-mode .details-content {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 15px;
+}
+
+/* Mały nagłówek nad mini-wykresem w widżecie */
+.chart-mini-header {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin: 0 0 6px 0;
 }
 
 .chart-period-buttons {

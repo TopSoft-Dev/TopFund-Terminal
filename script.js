@@ -6,6 +6,18 @@ import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc
 const APLIKACJA_ID = "topfund-terminal"; 
 // -----------------------------------------
 
+// --- KONFIG: Docelowy rok dla ekstrapolacji (do ukończenia 50 lat) ---
+// Prognozuj aż do roku 2038
+const EXTRAPOLATION_TARGET_YEAR = 2038;
+
+// Pomocnicza: liczba miesięcy od teraz do 31 grudnia docelowego roku (włącznie)
+function computeMonthsUntilYear(targetYear) {
+  const now = new Date();
+  const end = new Date(targetYear, 11, 31);
+  let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth()) + 1;
+  return Math.max(months, 0);
+}
+
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyCRKyqcz7xd4ykSB7R1Tm_c_bmE8UVLiLE",
@@ -1729,10 +1741,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (progressFill && progressPercentageEl) {
                 updateMonthlyProgressWidget(cachedTransactions, loggedInUser);
                 
-                // Inicjalizuj widget wykresu procentowego
-                const chartData = generatePercentageChartData(7);
-                drawPercentageChart(chartData, 'percentage-chart');
-                updatePercentageChartStats(chartData);
+                
             } else {
                 console.log('Widget: BŁĄD - Brak elementów DOM widgetu!');
                 
@@ -1872,17 +1881,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Buduj serię do 2050
+        // Buduj serię do roku docelowego
         const now = new Date();
-        const end = new Date(2050, 11, 31);
-        let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth()) + 1;
-        months = Math.max(months, 0);
+        let months = computeMonthsUntilYear(EXTRAPOLATION_TARGET_YEAR);
         const labels = [];
         const values = [];
         let value = base;
-        for (let i = 0; i <= months; i++) {
+        for (let i = 0; i < months; i++) {
             const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-            labels.push(d.toLocaleDateString('pl-PL', { month: '2-digit', year: '2-digit' }));
+            // Mały wykres użytkownika: dwie cyfry roku na styczniu
+            labels.push(d.getMonth() === 0 ? String(d.getFullYear()).slice(2) : '');
             if (i > 0) value = value * (1 + monthlyRate);
             values.push(value);
         }
@@ -1906,7 +1914,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } },
+                    x: { grid: { display: false }, ticks: { autoSkip: false, callback: (v, i) => labels[i] || undefined } },
                     y: { grid: { color: 'rgba(0,0,0,0.08)' }, ticks: { callback: v => v.toLocaleString('pl-PL') + ' USD' } }
                 }
             }
@@ -1933,9 +1941,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // Przygotuj serię
         const now = new Date();
-        const end = new Date(2050, 11, 31);
-        let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth()) + 1;
-        months = Math.max(months, 0);
+        let months = computeMonthsUntilYear(EXTRAPOLATION_TARGET_YEAR);
         let value = base;
         for (let i = 0; i <= months; i++) {
             if (i > 0) value = value * (1 + monthlyRate);
@@ -1967,15 +1973,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const base = getUserCurrentBalance(user);
         if (base <= 0) return;
         const now = new Date();
-        const end = new Date(2050, 11, 31);
-        let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth()) + 1;
-        months = Math.max(months, 0);
+        let months = computeMonthsUntilYear(EXTRAPOLATION_TARGET_YEAR);
         const labels = [];
         const values = [];
         let value = base;
-        for (let i = 0; i <= months; i++) {
+        for (let i = 0; i < months; i++) {
             const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-            labels.push(d.toLocaleDateString('pl-PL', { month: '2-digit', year: '2-digit' }));
+            // Pełny widok u Topcia: dwie cyfry roku, aby oszczędzić miejsce
+            labels.push(d.getMonth() === 0 ? String(d.getFullYear()).slice(2) : '');
             if (i > 0) value = value * (1 + monthlyRate);
             values.push(value);
         }
@@ -2001,7 +2006,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 interaction: { mode: 'index', intersect: false },
                 plugins: { legend: { display: false }, tooltip: { enabled: true, mode: 'index', intersect: false } },
                 scales: {
-                    x: { grid: { display: false }, ticks: { maxTicksLimit: 10, color: textColor, autoSkip: true, maxRotation: 0 } },
+                    x: { grid: { display: false }, title: { display: true, text: 'Rok', color: textColor }, ticks: { maxTicksLimit: 12, color: textColor, autoSkip: false, maxRotation: 0, callback: (v,i) => labels[i] || undefined } },
                     y: { grid: { color: gridColor }, ticks: { color: textColor, callback: v => v.toLocaleString('pl-PL') + ' USD' } }
                 }
             }
@@ -2363,190 +2368,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Zastąpienie: teraz Topciu ma w widżecie wykres miesięczny, więc nie pokazujemy modala dziennego
 
-    // Funkcja do generowania danych dla wykresu zysku dziennego
-    function generatePercentageChartData(days = 7) {
-        const data = [];
-        const now = new Date();
-        
-        // Generuj dane dla określonej liczby dni
-        for (let i = days - 1; i >= 0; i--) {
-            const date = new Date(now);
-            date.setDate(date.getDate() - i);
-            
-            // Oblicz rzeczywisty zysk dla tego dnia z transakcji
-            let dailyProfit = 0;
-            
-            if (cachedTransactions && cachedTransactions.length > 0) {
-                cachedTransactions.forEach(transaction => {
-                    const transactionDate = transaction.createdAt.toDate();
-                    const isSameDay = transactionDate.getDate() === date.getDate() &&
-                                    transactionDate.getMonth() === date.getMonth() &&
-                                    transactionDate.getFullYear() === date.getFullYear();
-                    
-                    if (isSameDay) {
-                        if (transaction.type === 'trade' && transaction.details) {
-                            // Dla transakcji trade, oblicz zysk dla Topcia
-                            Object.values(transaction.details).forEach(detail => {
-                                if (detail.name === 'Topciu') {
-                                    let userProfit = detail.profitLossShare - (detail.commissionPaid || 0);
-                                    if (detail.commissionCollected) {
-                                        userProfit += detail.commissionCollected;
-                                    }
-                                    dailyProfit += userProfit;
-                                }
-                            });
-                        } else if (transaction.type === 'deposit') {
-                            dailyProfit += transaction.amount;
-                        } else if (transaction.type === 'withdrawal') {
-                            dailyProfit -= transaction.amount;
-                        }
-                    }
-                });
-            }
-            
-            data.push({
-                date: date,
-                profit: dailyProfit,
-                label: date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' })
-            });
-        }
-        
-        return data;
-    }
-
-    // Funkcja do rysowania wykresu procentowego z Chart.js (pozostaje dla innych miejsc, ale nie dla Topcia-widgetu)
-    function drawPercentageChart(data, canvasId, isLarge = false) {
-        const canvas = document.getElementById(canvasId);
-        if (!canvas) return;
-        
-        // Zniszcz istniejący wykres jeśli istnieje
-        if (canvas.chart) {
-            canvas.chart.destroy();
-        }
-        
-        // Ustaw rozmiar tylko na mobile; na desktopie pozwól CSS kontrolować rozmiar
-        if (isLarge) {
-            const isMobile = window.innerWidth <= 768;
-            if (isMobile) {
-                canvas.width = window.innerWidth - 40;
-                canvas.height = 250;
-            } else {
-                canvas.removeAttribute('width');
-                canvas.removeAttribute('height');
-            }
-        }
-        
-        // Przygotuj dane dla Chart.js
-        const chartData = {
-            labels: data.map(d => d.label),
-            datasets: [{
-                label: 'Zysk dzienny (USD)',
-                data: data.map(d => d.profit),
-                borderColor: '#3498db',
-                backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                borderWidth: isLarge ? 3 : 2,
-                pointBackgroundColor: '#3498db',
-                pointBorderColor: '#3498db',
-                pointRadius: isLarge ? 5 : 3,
-                pointHoverRadius: isLarge ? 7 : 5,
-                fill: true,
-                tension: 0.4
-            }]
-        };
-        
-        // Konfiguracja wykresu
-        const config = {
-            type: 'line',
-            data: chartData,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                // Ograniczenia rozmiaru
-                layout: {
-                    padding: {
-                        top: 10,
-                        bottom: 10,
-                        left: 10,
-                        right: 10
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        backgroundColor: 'rgba(0, 0, 0, 0.9)',
-                        titleColor: '#fff',
-                        bodyColor: '#fff',
-                        borderColor: '#3498db',
-                        borderWidth: 1,
-                        titleFont: {
-                            size: isLarge ? 16 : 14,
-                            weight: 'bold'
-                        },
-                        bodyFont: {
-                            size: isLarge ? 16 : 14
-                        },
-                        padding: isLarge ? 16 : 12,
-                        cornerRadius: 8,
-                        callbacks: {
-                            label: function(context) {
-                                const value = context.parsed.y;
-                                return `Zysk: ${value >= 0 ? '+' : ''}${value.toFixed(2)} USD`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        display: true,
-                        grid: {
-                            display: false
-                        },
-                        ticks: {
-                            color: '#ffffff',
-                            font: {
-                                size: isLarge ? 12 : 10
-                            }
-                        }
-                    },
-                    y: {
-                        display: true,
-                        position: 'left',
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.1)',
-                            drawBorder: false
-                        },
-                        ticks: {
-                            color: '#ffffff',
-                            font: {
-                                size: isLarge ? 12 : 10
-                            },
-                            callback: function(value) {
-                                return `${value >= 0 ? '+' : ''}${value} USD`;
-                            }
-                        }
-                    }
-                },
-                interaction: {
-                    mode: 'nearest',
-                    axis: 'x',
-                    intersect: false
-                },
-                elements: {
-                    point: {
-                        hoverBorderWidth: 2
-                    }
-                }
-            }
-        };
-        
-        // Stwórz wykres
-        canvas.chart = new Chart(canvas, config);
-    }
-
     // NOWOŚĆ: Mały wykres miesięczny dla Topcia w sekcji Widgety (używa naszego canvasu 'percentage-chart')
     function updateTopciuMonthlyWidgetChart() {
         if (!loggedInUser || loggedInUser.name !== 'Topciu') return;
@@ -2659,28 +2480,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Funkcja do obsługi tooltipów wykresu - usunięta, bo Chart.js ma wbudowane tooltipy
 
-    // Funkcja do aktualizacji statystyk wykresu zysku dziennego
-    function updatePercentageChartStats(data) {
-        const profits = data.map(d => d.profit);
-        const currentProfit = profits[profits.length - 1];
-        const avgProfit = profits.reduce((sum, val) => sum + val, 0) / profits.length;
-        
-        // Aktualizuj elementy w modalu
-        document.getElementById('percentageCurrentChange').textContent = `${currentProfit >= 0 ? '+' : ''}${currentProfit.toFixed(2)} USD`;
-        document.getElementById('percentageAvgChange').textContent = `${avgProfit >= 0 ? '+' : ''}${avgProfit.toFixed(2)} USD`;
-        
-        // Aktualizuj widget
-        document.getElementById('chart-current-percentage').textContent = `${currentProfit >= 0 ? '+' : ''}${currentProfit.toFixed(2)} USD`;
-        
-        // Kolorowanie wartości
-        const currentEl = document.getElementById('percentageCurrentChange');
-        const avgEl = document.getElementById('percentageAvgChange');
-        const widgetEl = document.getElementById('chart-current-percentage');
-        
-        currentEl.className = currentProfit >= 0 ? 'stat-value positive-amount' : 'stat-value negative-amount';
-        avgEl.className = avgProfit >= 0 ? 'stat-value positive-amount' : 'stat-value negative-amount';
-        widgetEl.className = currentProfit >= 0 ? 'chart-current-value positive-amount' : 'chart-current-value negative-amount';
-    }
+    
 
     // Rysowanie dużego wykresu ekstrapolacji
     async function drawExtrapolationLarge() {
@@ -2695,17 +2495,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const base = getCurrentTotalBalanceValue();
         if (base <= 0) return;
 
-        // Dane do 2050 (tak jak w małym, ale bez limitu punktów)
+        // Dane do roku docelowego (tak jak w małym, ale bez limitu punktów)
         const now = new Date();
-        const end = new Date(2050, 11, 31);
-        let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth()) + 1;
-        months = Math.max(months, 0);
+        let months = computeMonthsUntilYear(EXTRAPOLATION_TARGET_YEAR);
         const labels = [];
         const values = [];
         let value = base;
-        for (let i = 0; i <= months; i++) {
+        for (let i = 0; i < months; i++) {
             const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-            labels.push(d.toLocaleDateString('pl-PL', { month: '2-digit', year: '2-digit' }));
+            labels.push(d.getMonth() === 0 ? String(d.getFullYear()).slice(2) : '');
             if (i > 0) value = value * (1 + monthlyRate);
             values.push(value);
         }
@@ -2763,7 +2561,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 },
                 scales: {
-                    x: { grid: { display: false }, ticks: { maxTicksLimit: 8, color: textColor, autoSkip: true } },
+                    x: { grid: { display: false }, title: { display: true, text: 'Rok', color: textColor }, ticks: { maxTicksLimit: 12, color: textColor, autoSkip: false, maxRotation: 0, callback: (v,i) => labels[i] || undefined } },
                     y: { grid: { color: gridColor }, ticks: { color: textColor, callback: (v) => v.toLocaleString('pl-PL') + ' USD' } }
                 }
             }
@@ -2879,18 +2677,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Wylicz liczbę miesięcy do grudnia 2050 włącznie
+        // Wylicz liczbę miesięcy do grudnia roku docelowego włącznie
         const now = new Date();
-        const end = new Date(2050, 11, 31);
-        let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth()) + 1;
-        months = Math.max(months, 0);
+        let months = computeMonthsUntilYear(EXTRAPOLATION_TARGET_YEAR);
 
         const labels = [];
         const values = [];
         let value = base;
-        for (let i = 0; i <= months; i++) {
+        for (let i = 0; i < months; i++) {
             const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-            labels.push(d.toLocaleDateString('pl-PL', { month: '2-digit', year: '2-digit' }));
+            labels.push(d.getMonth() === 0 ? String(d.getFullYear()).slice(2) : '');
             if (i > 0) {
                 value = value * (1 + monthlyRate);
             }
@@ -2947,7 +2743,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 scales: {
                     x: {
                         grid: { display: false },
-                        ticks: { maxTicksLimit: 8, color: textColor, autoSkip: true, maxRotation: 0 }
+                        ticks: { maxTicksLimit: 8, color: textColor, autoSkip: false, maxRotation: 0, callback: (v,i) => labels[i] || undefined }
                     },
                     y: {
                         grid: { color: gridColor },
@@ -3001,49 +2797,61 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // --- FUNKCJE DO GENEROWANIA I POBIERANIA CSV ---
-function generateCSV(transactions, currentUser) {
+ function generateCSV(transactions, currentUser) {
     const isTopciu = currentUser && currentUser.name === 'Topciu';
-    const headers = isTopciu 
-        ? ['Data', 'Typ', 'Opis', 'Kwota transakcji', 'Saldo po transakcji', 'Uczestnik', 'Zysk/Strata uczestnika', 'Prowizja', 'Nowe saldo uczestnika']
-        : ['Data', 'Typ', 'Opis', 'Twoja zmiana', 'Twoje saldo po'];
+    const headers = ['Data', 'Godzina', 'Typ', 'Użytkownik', 'Kwota', 'Saldo po'];
+
+    const formatPL = (num) => {
+        if (num === null || num === undefined || isNaN(num)) return '';
+        return Number(num).toFixed(2);
+    };
 
     let csvRows = [headers.join(',')];
 
-    transactions.forEach(transaction => {
-        const date = new Date(transaction.createdAt.toDate()).toLocaleString('pl-PL');
-        const type = transaction.type;
+    transactions.forEach(tx => {
+        const d = tx.createdAt.toDate();
+        const date = d.toLocaleDateString('pl-PL');
+        const time = d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+        const type = tx.type;
 
         if (isTopciu) {
-            // Logika dla Topcia - pełne dane
-            if (type === 'trade' && transaction.details) {
-                const tradeAmount = transaction.amount.toFixed(2);
-                const totalBalanceAfter = transaction.totalBalanceAfter ? transaction.totalBalanceAfter.toFixed(2) : 'N/A';
-                csvRows.push([date, type, 'Zagranie grupowe', tradeAmount, totalBalanceAfter, '', '', '', ''].join(','));
-
-                for (const userId in transaction.details) {
-                    const detail = transaction.details[userId];
-                    csvRows.push(['', '', '', '', '', detail.name, detail.profitLossShare.toFixed(2), (detail.commissionPaid || 0).toFixed(2), detail.newBalance.toFixed(2)].join(','));
-                }
+            // CSV dla Topcia: rozbicie na każdego użytkownika + Topciu
+            if (type === 'trade' && tx.details) {
+                Object.values(tx.details).forEach(detail => {
+                    const name = detail.name || '';
+                    let amount = (detail.profitLossShare || 0) - (detail.commissionPaid || 0);
+                    if (name === 'Topciu' && detail.commissionCollected) {
+                        amount += detail.commissionCollected;
+                    }
+                    const balance = detail.newBalance != null ? formatPL(detail.newBalance) : '';
+                    csvRows.push([date, time, 'trade', name, formatPL(amount), balance].join(','));
+                });
+            } else if (type === 'deposit' || type === 'withdrawal') {
+                const targetName = tx.userName || '';
+                const signedAmount = type === 'deposit' ? tx.amount : -tx.amount;
+                const balance = tx.balanceAfter != null ? formatPL(tx.balanceAfter) : '';
+                csvRows.push([date, time, type, targetName, formatPL(signedAmount), balance].join(','));
             } else {
-                csvRows.push([date, type, transaction.userName || 'N/A', transaction.amount.toFixed(2), transaction.balanceAfter ? transaction.balanceAfter.toFixed(2) : 'N/A', '', '', '', ''].join(','));
+                const balance = tx.balanceAfter != null ? formatPL(tx.balanceAfter) : '';
+                csvRows.push([date, time, type, '', tx.amount != null ? formatPL(tx.amount) : '', balance].join(','));
             }
         } else {
-            // Logika dla zwykłego użytkownika - tylko jego dane
-            if (type === 'trade' && transaction.details) {
-                const userDetail = transaction.details[currentUser.id];
-                if (userDetail) {
-                    const userProfit = userDetail.profitLossShare - (userDetail.commissionPaid || 0);
-                    csvRows.push([date, type, 'Zagranie', userProfit.toFixed(2), userDetail.newBalance.toFixed(2)].join(','));
+            // Zwykły użytkownik – jak dotychczas, ale w tym samym formacie kolumn
+            if (type === 'trade' && tx.details) {
+                const ud = tx.details[currentUser.id];
+                if (ud) {
+                    const userProfit = (ud.profitLossShare - (ud.commissionPaid || 0));
+                    csvRows.push([date, time, 'trade', currentUser.name, formatPL(userProfit), formatPL(ud.newBalance)].join(','));
                 }
-            } else if ((type === 'deposit' || type === 'withdrawal') && transaction.userId === currentUser.id) {
-                const amount = type === 'deposit' ? transaction.amount : -transaction.amount;
-                csvRows.push([date, type, type, amount.toFixed(2), transaction.balanceAfter.toFixed(2)].join(','));
+            } else if ((type === 'deposit' || type === 'withdrawal') && tx.userId === currentUser.id) {
+                const signedAmount = type === 'deposit' ? tx.amount : -tx.amount;
+                csvRows.push([date, time, type, currentUser.name, formatPL(signedAmount), formatPL(tx.balanceAfter)].join(','));
             }
         }
     });
 
     return csvRows.join('\n');
-}
+ }
 
 function downloadCSV(csvContent, fileName) {
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });

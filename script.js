@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginUsernameInput = document.getElementById('loginUsername');
     const loginPasswordInput = document.getElementById('loginPassword');
     const loginErrorElement = document.getElementById('loginError');
+    const rememberLoginCheckbox = document.getElementById('rememberLogin');
 
     // --- Elementy DOM Głównej Aplikacji ---
     const mainAppElements = document.querySelectorAll('main, footer, #addUserModal, #editUserModal, #transactionDetailsModal');
@@ -70,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const transactionModeContainer = document.getElementById('transaction-mode-container');
     const transactionModeSelect = document.getElementById('transaction-mode');
     const usersList = document.getElementById('users-list');
+    const usersCardContent = document.getElementById('users-card-content');
     const userSummaryCards = document.getElementById('user-summary-cards');
     const totalBalanceElement = document.getElementById('total-balance');
     const totalBalanceContainer = document.getElementById('totalBalanceContainer');
@@ -83,7 +85,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const userCard = document.getElementById('user-card');
     const usernameDisplay = document.getElementById('username-display');
     const logoutButton = document.getElementById('logout-button');
+    const logoutButtonDesktop = document.getElementById('logout-button-desktop');
     const topciuLogoutBtn = document.getElementById('topciuLogoutBtn');
+    const toggleUsersCardBtn = document.getElementById('toggleUsersCardBtn');
     const themeToggle = document.getElementById('theme-toggle');
 
     const actionTypeSelect = document.getElementById('action-type');
@@ -94,6 +98,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const transactionDetailsMobileModal = document.getElementById('transactionDetailsMobileModal');
     const closeTransactionDetailsMobileModalBtn = document.getElementById('closeTransactionDetailsMobileModalBtn');
     const transactionDetailsMobileContent = document.getElementById('transactionDetailsMobileContent');
+    const fabAddTransaction = document.getElementById('fabAddTransaction');
+    const fabPositionCalc = document.getElementById('fabPositionCalc');
+    const positionCalcModal = document.getElementById('positionCalcModal');
+    const closePositionCalcModalBtn = document.getElementById('closePositionCalcModalBtn');
+    const positionCalcContent = document.getElementById('positionCalcContent');
 
     // Elementy wykresu miesięcznych zysków
     const monthlyProfitsSection = document.getElementById('monthly-profits-section');
@@ -127,6 +136,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Elementy modala wykresu procentowego
     const percentageChartModal = document.getElementById('percentageChartModal');
     const closePercentageChartModalBtn = document.getElementById('closePercentageChartModalBtn');
+    // Topciu: toggle widżetów (mobile)
+    const toggleTopciuWidgetsBtn = document.getElementById('toggleTopciuWidgetsBtn');
+
 
     // Funkcje do zarządzania scrollowaniem
     function disableBodyScroll() {
@@ -159,8 +171,12 @@ document.addEventListener('DOMContentLoaded', () => {
     mainAppElements.forEach(el => el.style.display = 'none');
     loginModal.style.display = 'flex'; // Pokaż modal logowania
 
-    // Ukryj przycisk dodawania użytkownika na początku
+    // Ukryj przyciski na starcie
     showAddUserModalBtn.style.display = 'none';
+    if (toggleUsersCardBtn) toggleUsersCardBtn.style.display = 'none';
+
+    // --- Auto-login jeśli włączony ---
+    tryAutoLogin();
 
     // --- NOWA, ULEPSZONA OBSŁUGA LOGOWANIA ---
     loginForm.addEventListener('submit', async (e) => {
@@ -191,8 +207,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (userData.name === 'Topciu' || userPermissions.includes(APLIKACJA_ID)) {
                     // --- SUKCES LOGOWANIA ---
                     loggedInUser = { id: userDoc.id, ...userData };
+                    // Zapamiętaj dane do auto-logowania, jeśli zaznaczono
+                    if (rememberLoginCheckbox && rememberLoginCheckbox.checked) {
+                        saveAutoLogin(username, hashedPassword);
+                    } else {
+                        clearAutoLogin();
+                    }
+                    // Animowane wejście aplikacji
                     loginModal.style.display = 'none';
+                    document.querySelectorAll('main, footer').forEach(el => el.classList.add('app-fade-enter'));
                     mainAppElements.forEach(el => el.style.display = ''); // Pokaż główną aplikację
+                    requestAnimationFrame(() => {
+                        document.querySelectorAll('main, footer').forEach(el => el.classList.add('app-fade-enter-active'));
+                    });
                     loginErrorElement.textContent = '';
 
                     // Kontrola widoczności elementów na podstawie roli użytkownika
@@ -225,6 +252,25 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         // Upewnij się, że Topciu nie używa layoutu non-topciu
                         document.body.classList.remove('non-topciu-layout');
+
+                        // MOBILE: domyślnie zwiń kartę Użytkownicy i pokaż przycisk + (tylko mobilnie)
+                        const isMobileView = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+                        if (isMobileView) {
+                            document.body.classList.add('topciu-mobile');
+                            if (usersSection) { usersSection.classList.add('collapsed'); }
+                            if (toggleUsersCardBtn) {
+                                toggleUsersCardBtn.style.display = 'inline-flex';
+                            }
+                            // Topciu: ustawienie stanu widżetów z localStorage i pokazanie przycisku
+                            setupTopciuWidgetsInitialState();
+                            if (toggleTopciuWidgetsBtn) toggleTopciuWidgetsBtn.style.display = 'inline-flex';
+                            if (fabPositionCalc) fabPositionCalc.style.display = 'inline-flex';
+                        } else {
+                            document.body.classList.remove('topciu-mobile');
+                            if (usersSection) { usersSection.classList.remove('collapsed'); }
+                            // Desktop: kalkulator pozycji też dostępny jako FAB
+                            if (fabPositionCalc) fabPositionCalc.style.display = 'inline-flex';
+                        }
                         
                         // Natychmiastowe sprawdzenie elementów
                         const progressFill = document.getElementById('monthly-progress-fill');
@@ -256,14 +302,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         showAddUserModalBtn.style.display = 'none';
                         transactionsSection.style.display = 'none';
                         totalBalanceContainer.style.display = 'none';
+                        if (toggleUsersCardBtn) toggleUsersCardBtn.style.display = 'none';
                         usersSection.style.display = 'none';
                         userCard.style.display = 'block';
                         monthlyProfitsSection.style.display = 'block';
                         showDetailsBtn.style.display = 'none';
                         document.getElementById('widgets-section').style.display = 'none'; // Ukryj sekcję widgetów
                         usernameDisplay.textContent = loggedInUser.name;
+                        const usernameDesktop = document.getElementById('username-desktop');
+                        if (usernameDesktop) usernameDesktop.textContent = loggedInUser.name;
+                        // Mobile: dopasuj nagłówek karty użytkownika: "Witaj, X" na mobile, "Użytkownik, X" na desktopie
+                        try { updateUserCardTitlePrefix(); } catch (_) { /* ignore */ }
                         // Przełącz layout 5-kolumnowy dla zwykłych użytkowników
                         document.body.classList.add('non-topciu-layout');
+                        // Mobile: przesuń Podsumowanie nad Widgety
+                        try { reorderUserSectionsMobile(); } catch (_) { /* ignore */ }
                         // Pokaż i narysuj widgety użytkownika od razu po zalogowaniu
                         const userWidgetsRow = document.getElementById('user-widgets-row');
                         if (userWidgetsRow) {
@@ -292,15 +345,445 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Obsługa Wylogowania ---
-    logoutButton.addEventListener('click', () => {
+    function performLogout() {
+        clearAutoLogin(); // przerwij sesję auto-logowania
         loggedInUser = null;
         location.reload(); // Przeładuj stronę, aby powrócić do ekranu logowania
+    }
+    // --- Funkcje auto-logowania ---
+    function saveAutoLogin(username, hashedPassword) {
+        try {
+            localStorage.setItem('autoLoginEnabled', 'true');
+            localStorage.setItem('autoLoginUser', username);
+            localStorage.setItem('autoLoginHash', hashedPassword);
+        } catch (_) {}
+    }
+
+    function clearAutoLogin() {
+        try {
+            localStorage.removeItem('autoLoginEnabled');
+            localStorage.removeItem('autoLoginUser');
+            localStorage.removeItem('autoLoginHash');
+        } catch (_) {}
+    }
+
+    async function tryAutoLogin() {
+        try {
+            const enabled = localStorage.getItem('autoLoginEnabled') === 'true';
+            const username = localStorage.getItem('autoLoginUser');
+            const storedHash = localStorage.getItem('autoLoginHash');
+            if (!enabled || !username || !storedHash) return;
+
+            // Uzupełnij formularz (opcjonalnie)
+            loginUsernameInput.value = username;
+            if (rememberLoginCheckbox) rememberLoginCheckbox.checked = true;
+
+            // Podejmij próbę logowania bez interakcji
+            showAutoLoginOverlay(true);
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("name", "==", username));
+            const usersSnapshot = await getDocs(q);
+            if (usersSnapshot.empty) return;
+            const userDoc = usersSnapshot.docs[0];
+            const userData = userDoc.data();
+            if (userData.hashedPassword !== storedHash) return;
+
+            const userPermissions = userData.permissions || [];
+            if (userData.name === 'Topciu' || userPermissions.includes(APLIKACJA_ID)) {
+                // Sukces auto-logowania, wykonaj te same kroki co przy normalnym logowaniu
+                loggedInUser = { id: userDoc.id, ...userData };
+                // Animowane wejście aplikacji
+                loginModal.style.display = 'none';
+                document.querySelectorAll('main, footer').forEach(el => el.classList.add('app-fade-enter'));
+                mainAppElements.forEach(el => el.style.display = '');
+                requestAnimationFrame(() => {
+                    document.querySelectorAll('main, footer').forEach(el => el.classList.add('app-fade-enter-active'));
+                });
+                loginErrorElement.textContent = '';
+
+                if (loggedInUser.name === 'Topciu') {
+                    showAddUserModalBtn.style.display = 'block';
+                    topciuLogoutBtn.style.display = 'block';
+                    transactionsSection.style.display = 'block';
+                    totalBalanceContainer.style.display = 'block';
+                    usersSection.style.display = 'block';
+                    userCard.style.display = 'none';
+                    showDetailsBtn.style.display = 'none';
+                    const widgetsSection = document.getElementById('widgets-section');
+                    if (widgetsSection) widgetsSection.style.display = 'block';
+                    document.body.classList.remove('non-topciu-layout');
+                    if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+                        document.body.classList.add('topciu-mobile');
+                        if (usersSection) { usersSection.classList.add('collapsed'); }
+                        if (toggleUsersCardBtn) toggleUsersCardBtn.style.display = 'inline-flex';
+                        setupTopciuWidgetsInitialState();
+                        if (toggleTopciuWidgetsBtn) toggleTopciuWidgetsBtn.style.display = 'inline-flex';
+                    }
+                    initializeTerminalUsers();
+                } else {
+                    showAddUserModalBtn.style.display = 'none';
+                    transactionsSection.style.display = 'none';
+                    totalBalanceContainer.style.display = 'none';
+                    if (toggleUsersCardBtn) toggleUsersCardBtn.style.display = 'none';
+                    usersSection.style.display = 'none';
+                    userCard.style.display = 'block';
+                    monthlyProfitsSection.style.display = 'block';
+                    showDetailsBtn.style.display = 'none';
+                    document.getElementById('widgets-section').style.display = 'none';
+                    usernameDisplay.textContent = username;
+                    try { updateUserCardTitlePrefix(); } catch (_) {}
+                    document.body.classList.add('non-topciu-layout');
+                    const userWidgetsRow = document.getElementById('user-widgets-row');
+                    if (userWidgetsRow) {
+                        userWidgetsRow.style.display = 'grid';
+                        const uw1 = document.getElementById('user-extrapolation-widget');
+                        if (uw1) uw1.style.display = 'none';
+                        try { setupUserWidgetsToggle(); } catch (e) {}
+                    }
+                    try { drawUserWidgets({ name: username }); } catch (e) {}
+                }
+                displayUserSummaryCards(cachedUsers, loggedInUser);
+                displayTransactions(cachedTransactions, loggedInUser);
+                updateTransactionFormUI();
+            }
+            hideAutoLoginOverlayWithDelay();
+        } catch (e) {
+            console.warn('Auto-login nie powiódł się', e);
+            showAutoLoginOverlay(false);
+        }
+    }
+
+    function showAutoLoginOverlay(show) {
+        const overlay = document.getElementById('autoLoginOverlay');
+        if (!overlay) return;
+        overlay.style.display = show ? 'flex' : 'none';
+        requestAnimationFrame(() => {
+            if (show) overlay.classList.add('show'); else overlay.classList.remove('show');
+        });
+    }
+    function hideAutoLoginOverlayWithDelay() {
+        const overlay = document.getElementById('autoLoginOverlay');
+        if (!overlay) return;
+        // Zostaw overlay odrobinę dłużej, by wrażenie było płynne i miłe
+        setTimeout(() => {
+            overlay.classList.remove('show');
+            setTimeout(() => { overlay.style.display = 'none'; }, 450);
+        }, 550);
+    }
+    logoutButton.addEventListener('click', performLogout);
+    if (logoutButtonDesktop) logoutButtonDesktop.addEventListener('click', performLogout);
+
+    topciuLogoutBtn.addEventListener('click', performLogout);
+
+    // --- Toggle karty Użytkownicy (mobile Topciu) ---
+    if (toggleUsersCardBtn && usersSection) {
+        toggleUsersCardBtn.addEventListener('click', () => {
+            if (!(loggedInUser && loggedInUser.name === 'Topciu')) return;
+            if (!(window.matchMedia && window.matchMedia('(max-width: 768px)').matches)) return;
+
+            const isCollapsed = usersSection.classList.toggle('collapsed');
+            toggleUsersCardBtn.textContent = isCollapsed ? '+' : '−';
+            toggleUsersCardBtn.setAttribute('aria-expanded', (!isCollapsed).toString());
+            toggleUsersCardBtn.setAttribute('title', isCollapsed ? 'Rozwiń' : 'Zwiń');
+        });
+    }
+
+    // Reakcja na zmianę rozmiaru okna: tylko na mobile pokazuj przycisk i domyślnie zwijaj
+    function applyUsersCardMobileState() {
+        if (!(loggedInUser && loggedInUser.name === 'Topciu')) return;
+        const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+        if (isMobile) {
+            document.body.classList.add('topciu-mobile');
+            if (toggleUsersCardBtn) toggleUsersCardBtn.style.display = 'inline-flex';
+            if (usersSection && !usersSection.classList.contains('collapsed')) {
+                // Domyślnie zwinięte na wejściu w mobile
+                usersSection.classList.add('collapsed');
+                if (toggleUsersCardBtn) toggleUsersCardBtn.textContent = '+';
+            }
+            if (fabAddTransaction) fabAddTransaction.style.display = 'inline-flex';
+            if (fabPositionCalc) fabPositionCalc.style.display = 'inline-flex';
+        } else {
+            document.body.classList.remove('topciu-mobile');
+            if (toggleUsersCardBtn) toggleUsersCardBtn.style.display = 'none';
+            if (usersSection) usersSection.classList.remove('collapsed');
+            if (fabAddTransaction) fabAddTransaction.style.display = 'none';
+            if (fabPositionCalc) fabPositionCalc.style.display = 'none';
+        }
+    }
+
+    window.addEventListener('resize', () => {
+        applyUsersCardMobileState();
+        // Synchronizuj też stan widżetów Topcia przy zmianie rozmiaru
+        if (loggedInUser && loggedInUser.name === 'Topciu') {
+            setupTopciuWidgetsInitialState();
+        }
+        // Dla zwykłego użytkownika – aktualizuj prefix tytułu na mobile/desktop
+        if (loggedInUser && loggedInUser.name !== 'Topciu') {
+            try { updateUserCardTitlePrefix(); } catch (_) { /* ignore */ }
+            try { reorderUserSectionsMobile(); } catch (_) { /* ignore */ }
+        }
     });
 
-    topciuLogoutBtn.addEventListener('click', () => {
-        loggedInUser = null;
-        location.reload();
-    });
+    function reorderUserSectionsMobile() {
+        if (!(loggedInUser && loggedInUser.name !== 'Topciu')) return;
+        const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+        if (!isMobile) return;
+        const main = document.querySelector('main.container');
+        const summarySection = document.getElementById('summary-section');
+        const monthlyProfitsSection = document.getElementById('monthly-profits-section');
+        if (!main || !summarySection || !monthlyProfitsSection) return;
+        // Jeżeli Podsumowanie znajduje się ZA Widgetami (po monthly), przesuń je nad
+        const summaryIsAfterMonthly = !!(monthlyProfitsSection.compareDocumentPosition(summarySection) & Node.DOCUMENT_POSITION_FOLLOWING);
+        if (summaryIsAfterMonthly) {
+            main.insertBefore(summarySection, monthlyProfitsSection);
+        }
+    }
+
+    function updateUserCardTitlePrefix() {
+        const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+        const titleEl = document.querySelector('#user-card .user-card-header h2');
+        if (!titleEl) return;
+        const nameSpan = titleEl.querySelector('#username-display');
+        const prefix = isMobile ? 'Witaj, ' : 'Użytkownik ';
+        if (nameSpan) {
+            // Przebuduj zawartość h2 zachowując span z nazwą
+            titleEl.textContent = '';
+            titleEl.append(prefix);
+            titleEl.appendChild(nameSpan);
+        } else {
+            titleEl.textContent = prefix + (loggedInUser ? loggedInUser.name || '' : '');
+        }
+    }
+    // Obsługa kliknięcia toggle widżetów Topcia
+    if (toggleTopciuWidgetsBtn) {
+        toggleTopciuWidgetsBtn.addEventListener('click', () => {
+            if (!(loggedInUser && loggedInUser.name === 'Topciu')) return;
+            const container = document.getElementById('widgets-container');
+            if (!container) return;
+            const isAnyHidden = Array.from(container.querySelectorAll('.widget-card'))
+                .some(el => el.id !== 'monthly-tracker-widget' && el.style.display === 'none');
+            const expand = isAnyHidden; // jeżeli coś schowane, to rozwiń
+            setTopciuWidgetsCollapsed(!expand);
+        });
+    }
+
+    function setupTopciuWidgetsInitialState() {
+        const state = localStorage.getItem('topciuWidgetsCollapsed') || 'true';
+        const collapsed = state === 'true';
+        setTopciuWidgetsCollapsed(collapsed);
+    }
+
+    function setTopciuWidgetsCollapsed(collapsed) {
+        const container = document.getElementById('widgets-container');
+        if (!container) return;
+        const cards = Array.from(container.querySelectorAll('.widget-card'));
+        cards.forEach(card => {
+            if (card.id === 'monthly-tracker-widget') {
+                card.style.display = 'block';
+            } else {
+                card.style.display = collapsed ? 'none' : 'block';
+            }
+        });
+        localStorage.setItem('topciuWidgetsCollapsed', String(collapsed));
+        if (toggleTopciuWidgetsBtn) toggleTopciuWidgetsBtn.textContent = collapsed ? '+' : '−';
+    }
+
+    // --- FAB: otwieranie modala dodawania transakcji na mobile ---
+    if (fabAddTransaction) {
+        fabAddTransaction.addEventListener('click', () => {
+            // Wykorzystamy istniejący modal dodawania transakcji? Nie ma.
+            // Zrobimy prosty pseudo-modal z istniejącą kartą jako treścią.
+            // Tu zamiast tworzyć nowy modal, skorzystamy z istn. modala transakcji mobilnych.
+            const modal = document.getElementById('transactionDetailsMobileModal');
+            if (!modal) return;
+            // Wstrzykuj formularz do treści modala tymczasowo
+            const form = document.getElementById('add-transaction-form');
+            if (!form) return;
+            // Utwórz kontener i przenieś formularz
+            const placeholder = document.createElement('div');
+            placeholder.id = 'addTxFormPlaceholder';
+            form.parentElement.insertBefore(placeholder, form);
+            transactionDetailsMobileContent.innerHTML = '';
+            transactionDetailsMobileContent.appendChild(form);
+            modal.style.display = 'flex';
+            disableBodyScroll();
+
+            // Dodaj przycisk anuluj/zamknij do modala
+            // (już jest X w modalu; dodatkowy niekonieczny)
+
+            // Po zamknięciu modala przywróć formularz na miejsce
+            const restoreForm = () => {
+                const ph = document.getElementById('addTxFormPlaceholder');
+                if (ph && ph.parentElement) {
+                    ph.parentElement.insertBefore(form, ph);
+                    ph.remove();
+                }
+            };
+
+            const onClose = () => {
+                restoreForm();
+                modal.style.display = 'none';
+                enableBodyScroll();
+                transactionDetailsMobileContent.innerHTML = '';
+            };
+
+            const closeBtn = document.getElementById('closeTransactionDetailsMobileModalBtn');
+            const off1 = () => { closeBtn.removeEventListener('click', handler); };
+            const handler = () => { onClose(); off1(); };
+            closeBtn.addEventListener('click', handler);
+
+            // Jeśli użytkownik wyśle formularz, po sukcesie też zamknij modal
+            const onSubmitHandler = () => {
+                setTimeout(() => {
+                    if (modal.style.display !== 'none') onClose();
+                }, 200);
+            };
+            form.addEventListener('submit', onSubmitHandler, { once: true });
+        });
+    }
+
+    // --- FAB: Kalkulator pozycji ---
+    if (fabPositionCalc) {
+        fabPositionCalc.addEventListener('click', () => {
+            openPositionCalculatorModal();
+        });
+    }
+
+    if (closePositionCalcModalBtn && positionCalcModal) {
+        closePositionCalcModalBtn.addEventListener('click', () => {
+            positionCalcModal.style.display = 'none';
+            enableBodyScroll();
+            positionCalcContent.innerHTML = '';
+        });
+    }
+
+    function openPositionCalculatorModal() {
+        if (!positionCalcModal || !positionCalcContent) return;
+        // Render kalkulatora bez pola edycji – użyj sumy wszystkich sald jako kapitału startowego
+        const html = `
+            <div id="pcSummary" style="margin: 0 0 10px 0; font-weight: 600;"></div>
+            <div id="pcResults" class="pc-results"></div>
+        `;
+        positionCalcContent.innerHTML = html;
+        positionCalcModal.style.display = 'flex';
+        disableBodyScroll();
+        const pcResults = document.getElementById('pcResults');
+        const pcSummary = document.getElementById('pcSummary');
+        const capital = Math.round(computeTotalManagedBalanceUSD());
+        pcSummary.textContent = `Kapitał bazowy: ${capital.toLocaleString('pl-PL')} USD`;
+        renderPositionCalcResults(pcResults, capital);
+    }
+
+    function renderPositionCalcResults(container, capital) {
+        if (!container) return;
+        if (!capital || capital <= 0) {
+            container.innerHTML = '<p style="color:#e74c3c">Podaj poprawny kapitał.</p>';
+            return;
+        }
+        const groups = 6;
+        const positionsPerGroup = 3;
+        const growth = 0.16; // 16%
+        // Wagi: 1, 1.16, 1.3456, ... (kolejne*1.16)
+        const weights = [];
+        let w = 1;
+        for (let i = 0; i < groups; i++) {
+            weights.push(w);
+            w = w * (1 + growth);
+        }
+        const totalWeight = weights.reduce((s, x) => s + x, 0);
+        const unit = capital / totalWeight;
+
+        container.innerHTML = '';
+        let positionIdx = 1;
+        const savedSelected = loadSelectedPositionGroupIndex();
+        for (let i = 0; i < groups; i++) {
+            const groupCapital = Math.round(unit * weights[i]);
+            const positionSize = Math.round(groupCapital / positionsPerGroup);
+            const endIdx = positionIdx + positionsPerGroup - 1;
+
+            const card = document.createElement('div');
+            card.className = 'result-card';
+            card.dataset.groupIndex = String(i);
+            if (savedSelected === i) card.classList.add('selected');
+            const title = document.createElement('h3');
+            title.textContent = `Grupa ${i + 1}`;
+            const total = document.createElement('p');
+            total.innerHTML = `Całkowity kapitał: <strong>${groupCapital.toLocaleString('pl-PL')}</strong> USD`;
+            const pos = document.createElement('p');
+            const label = positionsPerGroup > 1 ? `Pozycje ${positionIdx}-${endIdx}` : `Pozycja ${positionIdx}`;
+            pos.innerHTML = `${label}: <strong>${positionSize.toLocaleString('pl-PL')}</strong> USD`;
+            card.appendChild(title);
+            card.appendChild(total);
+            card.appendChild(pos);
+            container.appendChild(card);
+
+            // Długie przytrzymanie, aby zaznaczyć kartę jako aktywną
+            setupLongPressSelect(card, i);
+            positionIdx = endIdx + 1;
+        }
+    }
+
+    function setupLongPressSelect(card, groupIndex) {
+        let pressTimer = null;
+        const LONG_PRESS_MS = 450;
+
+        const start = (e) => {
+            if (pressTimer) clearTimeout(pressTimer);
+            pressTimer = setTimeout(() => {
+                selectPositionGroupCard(card, groupIndex);
+            }, LONG_PRESS_MS);
+        };
+        const cancel = () => {
+            if (pressTimer) clearTimeout(pressTimer);
+            pressTimer = null;
+        };
+
+        card.addEventListener('touchstart', start, { passive: true });
+        card.addEventListener('mousedown', start);
+        card.addEventListener('touchend', cancel);
+        card.addEventListener('touchmove', cancel);
+        card.addEventListener('mouseup', cancel);
+        card.addEventListener('mouseleave', cancel);
+    }
+
+    function selectPositionGroupCard(card, groupIndex) {
+        // Usuń zaznaczenie z innych
+        const container = card.parentElement;
+        if (container) {
+            container.querySelectorAll('.result-card.selected').forEach(el => el.classList.remove('selected'));
+        }
+        // Zaznacz bieżącą
+        card.classList.add('selected');
+        saveSelectedPositionGroupIndex(groupIndex);
+    }
+
+    function saveSelectedPositionGroupIndex(index) {
+        try {
+            localStorage.setItem('positionCalcSelectedGroup', String(index));
+        } catch (_) { /* ignore */ }
+    }
+
+    function loadSelectedPositionGroupIndex() {
+        try {
+            const raw = localStorage.getItem('positionCalcSelectedGroup');
+            const val = raw == null ? null : Number(raw);
+            return Number.isInteger(val) ? val : null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function computeTotalManagedBalanceUSD() {
+        // Suma wszystkich sald, którymi zarządza Topciu (aktywni użytkownicy terminala)
+        // W cachedUsers mamy już przefiltrowaną listę użytkowników (Topciu + uprawnieni)
+        if (!Array.isArray(cachedUsers) || cachedUsers.length === 0) return 0;
+        let total = 0;
+        for (const user of cachedUsers) {
+            const balance = Number(user.currentBalance || user.startBalance || 0);
+            total += isFinite(balance) ? balance : 0;
+        }
+        return total;
+    }
 
     // --- GŁÓWNA LOGIKA APLIKACJI ---
 
@@ -1897,6 +2380,9 @@ document.addEventListener('DOMContentLoaded', () => {
         finalEl.textContent = abbreviateNumber(values[values.length - 1]);
 
         if (canvas.chart) canvas.chart.destroy();
+        const isDark = document.body.classList.contains('dark-mode');
+        const textColor = isDark ? '#ecf0f1' : '#333333';
+        const gridColor = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)';
         canvas.chart = new Chart(canvas, {
             type: 'line',
             data: { labels, datasets: [{
@@ -1914,8 +2400,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { grid: { display: false }, ticks: { autoSkip: false, callback: (v, i) => labels[i] || undefined } },
-                    y: { grid: { color: 'rgba(0,0,0,0.08)' }, ticks: { callback: v => v.toLocaleString('pl-PL') + ' USD' } }
+                    x: { grid: { display: false }, ticks: { autoSkip: false, color: textColor, callback: (v, i) => labels[i] || undefined } },
+                    y: { grid: { color: gridColor }, ticks: { color: textColor, callback: v => v.toLocaleString('pl-PL') + ' USD' } }
                 }
             }
         });
@@ -2057,6 +2543,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (loggedInUser && loggedInUser.name === 'Topciu') {
             updateMonthlyProgressWidget(cachedTransactions, loggedInUser);
             updateTopciuMonthlyWidgetChart();
+            // Wymuś prze-rysowanie mini-widżetu Ekstrapolacji z nowymi kolorami
+            updateExtrapolationWidget(true);
+        } else if (loggedInUser) {
+            updateUserExtrapolationWidget(loggedInUser);
         }
     });
 
@@ -2650,7 +3140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return sign + abs.toFixed(0);
     }
 
-    function updateExtrapolationWidget() {
+    function updateExtrapolationWidget(forceRedraw = false) {
         const widgetCard = document.getElementById('extrapolation-widget');
         const rateEl = document.getElementById('extrapolation-monthly-rate');
         const finalEl = document.getElementById('extrapolation-final-value');
@@ -2667,7 +3157,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const base = getCurrentTotalBalanceValue();
         // Zabezpieczenie: jeżeli nic się nie zmieniło, nie renderuj ponownie
         const signature = `${base}|${monthlyRate.toFixed(6)}`;
-        if (signature === lastExtrapolationSignature && extrapolationChart) {
+        if (!forceRedraw && signature === lastExtrapolationSignature && extrapolationChart) {
             return;
         }
         lastExtrapolationSignature = signature;

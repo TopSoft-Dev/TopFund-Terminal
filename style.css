@@ -48,6 +48,69 @@ body.modal-open {
     overflow: hidden;
 }
 
+/* --- Auto-login overlay z animacją --- */
+.auto-login-overlay {
+    position: fixed;
+    z-index: 1500;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 450ms ease;
+}
+.auto-login-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+.auto-login-overlay .auto-login-text {
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+.spinner {
+    position: relative;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 350ms ease, transform 350ms ease;
+}
+.spinner::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    box-sizing: border-box;
+    border: 6px solid rgba(255,255,255,0.25);
+    border-top-color: #3498db;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.auto-login-overlay.show .spinner {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Płynne przejście głównej aplikacji po zalogowaniu */
+.app-fade-enter {
+    opacity: 0;
+    transform: translateY(10px);
+}
+.app-fade-enter-active {
+    transition: opacity 300ms ease, transform 300ms ease;
+    opacity: 1;
+    transform: translateY(0);
+}
+
 /* Style dla nagłówków miesięcy w archiwum */
 .month-header {
     background-color: var(--card-background);
@@ -149,6 +212,64 @@ body.dark-mode .month-transaction-count .negative-amount {
         padding: 10px;
         gap: 15px;
     }
+}
+
+/* --- FAB: Dodaj transakcję na mobile --- */
+.fab-add-tx {
+    position: fixed;
+    right: 86px; /* odsunięcie w lewo, aby kalkulator był w samym rogu */
+    bottom: 18px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: #fff;
+    font-size: 30px;
+    font-weight: 700;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.35), 0 3px 8px rgba(0,0,0,0.2);
+    z-index: 1100;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.fab-add-tx:hover { background: #2980b9; }
+
+/* FAB Kalkulator pozycji */
+.fab-calc {
+    position: fixed;
+    right: 18px;
+    bottom: 18px; /* ta sama płaszczyzna co FAB dodawania */
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #1f8b4c; /* zielonkawy odcień dla odróżnienia */
+    color: #fff;
+    font-size: 28px;
+    font-weight: 700;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.35), 0 3px 8px rgba(0,0,0,0.2);
+    z-index: 1100;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.fab-calc:hover { background: #187a42; }
+
+/* Mobile: ukryj starą kartę transakcji, gdy używamy FAB+modala */
+@media (max-width: 768px) {
+    body.topciu-mobile #transactions-section { display: none !important; }
+    body.topciu-mobile .fab-add-tx { display: inline-flex !important; }
+    body.topciu-mobile .fab-calc { display: inline-flex !important; }
+}
+
+/* Na desktopie też pokazuj FAB kalkulatora pozycji */
+@media (min-width: 769px) {
+    .fab-calc { display: inline-flex !important; }
+}
+
+/* Gdy otwarty jest dowolny modal, ukryj FAB-y */
+body.modal-open .fab-add-tx,
+body.modal-open .fab-calc {
+    display: none !important;
 }
 
 @media (max-width: 480px) {
@@ -1238,14 +1359,11 @@ body.dark-mode .details-content {
      * Ujednolicamy rozmiar i podmieniamy ikonę na strzałkę.
      */
     #topciuLogoutBtn {
-        font-size: 0;  /* Ukrywamy oryginalny symbol ⏻ */
+        font-size: 18px;  /* Zachowaj ikonę ⏻ jak na desktopie */
     }
 
     #topciuLogoutBtn::before {
-        content: '←';         /* Nowa ikona - strzałka */
-        font-size: 22px;      /* Dopasowany rozmiar ikony */
-        font-weight: bold;
-        color: white;
+        content: none;        /* Brak podmiany na strzałkę */
     }
 }
 
@@ -1362,6 +1480,8 @@ body.dark-mode .details-content {
     background-color: var(--background-color);
     border-radius: 8px;
     border: 1px solid var(--border-color);
+    position: relative;
+    overflow: hidden;
 }
 
 #monthly-profits-chart {
@@ -1370,6 +1490,19 @@ body.dark-mode .details-content {
     background-color: var(--card-background);
     border-radius: 4px;
     cursor: pointer;
+}
+
+/* Błysk dla widżetu "Miesięczny zysk" u zwykłego użytkownika */
+#user-monthly-bar-widget #chart-container::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+    animation: shimmer 2.8s infinite;
+    pointer-events: none;
 }
 
 /* Responsywność dla wykresu */
@@ -1574,6 +1707,116 @@ body.dark-mode .details-content {
     background-color: #2980b9;
 }
 
+/* Topciu: toggle dla sekcji Widgety */
+#toggleTopciuWidgetsBtn {
+    background-color: var(--primary-color);
+    color: #fff;
+    border: 1px solid var(--primary-color);
+}
+#toggleTopciuWidgetsBtn:hover { background-color: #2980b9; }
+
+/* Mobile: domyślnie zwinięte widżety poza trackerem */
+@media (max-width: 768px) {
+    body.topciu-mobile #widgets-section .widget-card { display: none; }
+    body.topciu-mobile #widgets-section #monthly-tracker-widget { display: block; }
+    body.topciu-mobile #toggleTopciuWidgetsBtn { display: inline-flex !important; }
+}
+
+/* Podstawowe style dla kalkulatora pozycji w modalu */
+.position-calc-form {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.position-calc-form input[type="number"] {
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+}
+.position-calc-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+.position-calc-actions .button-primary {
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+}
+.pc-results {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+@media (min-width: 768px) {
+    .pc-results { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Desktop: szerszy modal kalkulatora pozycji, by uniknąć łamania w wielu liniach */
+@media (min-width: 1024px) {
+    #positionCalcModal .modal-content {
+        max-width: 880px;
+    }
+}
+
+/* Karty wyników w kalkulatorze pozycji */
+#positionCalcModal .result-card {
+    background: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 4px 10px var(--shadow-color);
+    padding: 14px 16px;
+}
+#positionCalcModal .result-card.selected {
+    border: 2px solid #ffd700;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.18);
+}
+#positionCalcModal .result-card h3 {
+    margin: 0 0 8px 0;
+    color: var(--header-color);
+    font-size: 1.05em;
+    border: none;
+    padding: 0;
+}
+#positionCalcModal .result-card p {
+    margin: 4px 0;
+    color: var(--text-color);
+}
+
+/* Niebieski przycisk "+" do zwijania karty Użytkownicy */
+#toggleUsersCardBtn,
+.users-toggle-btn {
+    background-color: var(--primary-color);
+    color: #fff;
+    border: 1px solid var(--primary-color);
+}
+.users-toggle-btn:hover {
+    background-color: #2980b9;
+}
+
+/* Sekcja Użytkownicy – obszar do zwijania (cała zawartość karty pod nagłówkiem) */
+#users-card-content { display: block; }
+#users-section.collapsed #users-card-content { display: none; }
+
+/* Wewnątrz karty Użytkownicy: pasek z zielonym "+" */
+.users-content-header {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+/* Mobile: pokaż przycisk toggle dla Topciu i ustaw domyślnie zwinięte */
+@media (max-width: 768px) {
+    body.topciu-mobile #toggleUsersCardBtn {
+        display: inline-flex !important;
+    }
+    body.topciu-mobile #users-section.collapsed #users-card-content {
+        display: none !important;
+    }
+}
+
 /* Powiększony wykres Ekstrapolacji – wykorzystaj te same style kontenera */
 #extrapolationChartModal .chart-container-large {
     display: flex;
@@ -1641,6 +1884,24 @@ body.dark-mode .details-content {
     max-width: 900px;
     max-height: 90vh;
     overflow-y: auto;
+}
+
+/* Usuń separator w modalu Zyski miesięczne i skoryguj pozycję przycisku zamknięcia */
+#percentageChartModal .stats-separator {
+    display: none !important;
+}
+#percentageChartModal .close-button {
+    top: 8px; /* delikatnie wyżej */
+}
+
+/* Usuń linię pod nagłówkiem w powiększonym wykresie miesięcznych zysków i podnieś X */
+#enlargedChartModal .modal-content h2 {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 8px;
+}
+#enlargedChartModal .close-button {
+    top: 8px;
 }
 
 /* Desktopowy układ bez scrolla dla modala Wykres zysku dziennego */
@@ -1826,6 +2087,117 @@ body.dark-mode .details-content {
     #toggleUserWidgetsBtn {
         margin-left: auto;
     }
+}
+
+/* Mobilne wyrównanie przycisku "+" (Topciu Widgety) na prawą stronę */
+@media (max-width: 480px) {
+    #widgets-section .card-header {
+        flex-direction: row !important;
+        align-items: center !important;
+    }
+    #toggleTopciuWidgetsBtn {
+        margin-left: auto;
+    }
+}
+
+/* Mobilne wyrównanie przycisku "Pokaż archiwum" w linii z tytułem karty Historia transakcji */
+@media (max-width: 480px) {
+    #history-section .card-header {
+        flex-direction: row !important;
+        align-items: center !important;
+    }
+    #toggleArchiveBtn {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+/* --- MOBILE: nagłówek karty Użytkownicy w jednym wierszu --- */
+@media (max-width: 768px) {
+    #users-section .card-header {
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 10px;
+    }
+    #users-section .card-header h2 {
+        margin: 0;
+        flex-grow: 1;
+    }
+    #users-section .card-header-buttons {
+        align-self: auto !important;
+        display: inline-flex;
+        gap: 8px;
+    }
+}
+
+/* Mobile: zwęź kartę "Użytkownik" i ustaw nagłówek + Wyloguj w jednym wierszu */
+@media (max-width: 768px) {
+    #user-card {
+        padding: 10px 12px;
+        max-width: 420px;
+    }
+    #user-card .user-card-header {
+        display: flex;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 0;
+        width: 100%;
+    }
+    #user-card .user-card-header h2 {
+        margin: 0;
+        font-size: 1.1em;
+        border-bottom: none;
+        padding-bottom: 0;
+        flex: 1 1 auto;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    #user-card .user-card-header .card-header-buttons {
+        align-self: auto;
+        margin-left: auto;
+        display: inline-flex;
+    }
+    #user-card #logout-button {
+        padding: 6px 10px;
+        font-size: 13px;
+        border-radius: 6px;
+    }
+}
+
+/* Desktop: przywróć klasyczny układ karty użytkownika */
+@media (min-width: 769px) {
+    #user-card .user-card-header h2 {
+        border-bottom: 2px solid var(--primary-color);
+        padding-bottom: 10px;
+        margin-bottom: 10px;
+    }
+    #user-card-greeting {
+        margin: 0;
+        font-size: 1em;
+    }
+    /* Na desktopie pokazuj drugi wiersz powitania, a nagłówek bez imienia */
+    #user-card .user-card-header h2 #username-display { display: none; }
+    #user-card #user-card-greeting { display: block; }
+    /* Przenieś przycisk Wyloguj pod powitanie */
+    #user-card .user-card-header .card-header-buttons { display: none; }
+    #logout-button-desktop {
+        margin-top: 10px;
+        padding: 8px 12px;
+        font-size: 14px;
+        border-radius: 6px;
+        display: inline-block;
+    }
+}
+
+/* Mobile: ukryj drugi wiersz powitania */
+@media (max-width: 768px) {
+    #user-card #user-card-greeting { display: none; }
+    #logout-button-desktop { display: none; }
 }
 
 /* Style dla nowych elementów w modalu ze statystykami */
@@ -2328,6 +2700,7 @@ body.dark-mode .details-content {
     border-radius: 8px;
     border: 1px solid var(--border-color);
     overflow: hidden;
+    position: relative;
 }
 
 .chart-info {
@@ -2517,6 +2890,19 @@ body.dark-mode .progress-fill::after {
             font-size: 11px;
         }
     }
+}
+
+/* Błysk na zielonych słupkach w widżecie "Zyski miesięczne" (jak w trackerze) */
+#percentage-chart-widget .chart-container-small::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+    animation: shimmer 2.8s infinite;
+    pointer-events: none;
 }
 
 /* Układ 5-polowy na desktopie: 1 + 2 + 2 w jednym wierszu */

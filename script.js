@@ -440,6 +440,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (uw1) uw1.style.display = 'none';
                         try { setupUserWidgetsToggle(); } catch (e) {}
                     }
+                    // Ustaw poprawną kolejność sekcji na mobile: Podsumowanie nad Widgetami
+                    try { reorderUserSectionsMobile(); } catch (e) {}
                     try { drawUserWidgets({ name: username }); } catch (e) {}
                 }
                 displayUserSummaryCards(cachedUsers, loggedInUser);
